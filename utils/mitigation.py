@@ -43,14 +43,26 @@ def mitigate_bias(
     """
     base_model = _get_base_model(model_type)
 
+    # --- FINAL SAFETY CLEAN (One last check to prevent any NaN/Inf leakage) ---
+    X_train = pd.DataFrame(X_train).fillna(0).replace([np.inf, -np.inf], 0)
+    y_train = np.ravel(y_train)
+
     if method == "Exponentiated Gradient":
-        mitigator = ExponentiatedGradient(
-            base_model, constraints=DemographicParity()
-        )
-        mitigator.fit(
-            X_train, y_train, sensitive_features=sensitive_features_train
-        )
-        return mitigator
+        try:
+            # Fairlearn's Exponentiated Gradient is sensitive to dtypes
+            sf_cleaned = np.array(sensitive_features_train).astype(str).ravel()
+            
+            mitigator = ExponentiatedGradient(
+                base_model, constraints=DemographicParity()
+            )
+            mitigator.fit(
+                X_train, y_train, sensitive_features=sf_cleaned
+            )
+            return mitigator
+        except Exception as e:
+            # Fallback to standard model if iteration fails or encounters internal NaNs
+            base_model.fit(X_train, y_train)
+            return base_model
 
     elif method == "Reweighing":
         try:

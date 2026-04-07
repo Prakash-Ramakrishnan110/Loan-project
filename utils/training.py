@@ -2,6 +2,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 def train_model(X, y, sensitive_features=None, model_type="Logistic Regression"):
@@ -37,11 +38,15 @@ def train_model(X, y, sensitive_features=None, model_type="Logistic Regression")
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
+    # Determine averaging strategy (Multiclass vs Binary)
+    unique_classes = len(np.unique(y_train))
+    avg_str = "binary" if unique_classes <= 2 else "macro"
+
     metrics = {
         "Accuracy": accuracy_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred, zero_division=0),
-        "Recall": recall_score(y_test, y_pred, zero_division=0),
-        "F1 Score": f1_score(y_test, y_pred, zero_division=0),
+        "Precision": precision_score(y_test, y_pred, average=avg_str, zero_division=0),
+        "Recall": recall_score(y_test, y_pred, average=avg_str, zero_division=0),
+        "F1 Score": f1_score(y_test, y_pred, average=avg_str, zero_division=0),
     }
 
     return model, metrics, X_test, y_test, y_pred, X_train, y_train, sf_train, sf_test
@@ -50,9 +55,14 @@ def train_model(X, y, sensitive_features=None, model_type="Logistic Regression")
 def evaluate_model(model, X_test, y_test):
     """Evaluate a model and return metrics dict."""
     y_pred = model.predict(X_test)
+    
+    # Determine averaging strategy (Multiclass vs Binary)
+    unique_classes = len(np.unique(y_test))
+    avg_str = "binary" if unique_classes <= 2 else "macro"
+
     return {
         "Accuracy": accuracy_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred, zero_division=0),
-        "Recall": recall_score(y_test, y_pred, zero_division=0),
-        "F1 Score": f1_score(y_test, y_pred, zero_division=0),
+        "Precision": precision_score(y_test, y_pred, average=avg_str, zero_division=0),
+        "Recall": recall_score(y_test, y_pred, average=avg_str, zero_division=0),
+        "F1 Score": f1_score(y_test, y_pred, average=avg_str, zero_division=0),
     }

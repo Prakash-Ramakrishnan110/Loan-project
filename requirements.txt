@@ -8,3 +8,4 @@ shap
 plotly
 matplotlib
 fpdf2
+kagglehub[pandas-datasets]

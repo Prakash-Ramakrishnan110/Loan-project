@@ -23,17 +23,35 @@ def compute_shap_values(model, X_train, X_test, model_type="Logistic Regression"
     shap_model = _unwrap_model(model)
     X_sample = X_test[:100] if len(X_test) > 100 else X_test
 
+    # Configure explainer
     if model_type == "Random Forest":
         explainer = shap.TreeExplainer(shap_model)
     else:
         explainer = shap.LinearExplainer(shap_model, X_train)
 
-    shap_values = explainer.shap_values(X_sample)
-
+    # --- COMPUTE SHAP ---
+    shap_results = explainer.shap_values(X_sample)
+    
+    # --- STANDARDIZE OUTPUT DIMENSIONS ---
+    # 1. New SHAP API returns an object with .values
+    if hasattr(shap_results, "values"):
+        shap_values = shap_results.values
+    else:
+        shap_values = shap_results
+    
+    # 2. Extract positive class for binary models (if output is 3D or List)
     if isinstance(shap_values, list):
-        shap_values = shap_values[1]
+        if len(shap_values) > 1:
+            shap_output = shap_values[1] # positive class
+        else:
+            shap_output = shap_values[0]
+    elif len(shap_values.shape) == 3:
+        # Array shape: (samples, features, classes)
+        shap_output = shap_values[:, :, 1]
+    else:
+        shap_output = shap_values
 
-    return shap_values, X_sample
+    return shap_output, X_sample
 
 
 def get_feature_importance(shap_values, feature_names):
@@ -50,30 +68,33 @@ def get_feature_importance(shap_values, feature_names):
 
 def generate_shap_summary_plot(model, X_train, X_test, model_type="Logistic Regression"):
     """Generate a matplotlib SHAP summary plot figure."""
-    shap_model = _unwrap_model(model)
-    X_sample = X_test[:100] if len(X_test) > 100 else X_test
+    plt.close('all') # Clear previous figures
+    
+    # Reuse the robust extraction logic
+    shap_vals, X_sample = compute_shap_values(model, X_train, X_test, model_type)
+    
+    # Capitalize columns for professional display
+    X_sample_display = X_sample.copy()
+    X_sample_display.columns = [c.replace('_', ' ').upper() for c in X_sample_display.columns]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Dynamically adjust height based on number of features
+    num_features = X_sample.shape[1]
+    fig_height = max(5, num_features * 0.8)
+    fig, ax = plt.subplots(figsize=(10, fig_height))
 
     try:
-        if model_type == "Random Forest":
-            explainer = shap.TreeExplainer(shap_model)
-            shap_values = explainer.shap_values(X_sample)
-            if isinstance(shap_values, list):
-                shap.summary_plot(shap_values[1], X_sample, show=False)
-            else:
-                shap.summary_plot(shap_values, X_sample, show=False)
-        else:
-            explainer = shap.LinearExplainer(shap_model, X_train)
-            shap_values = explainer.shap_values(X_sample)
-            shap.summary_plot(shap_values, X_sample, show=False)
-    except Exception:
-        ax.text(
-            0.5, 0.5,
-            "SHAP computation failed for this model configuration",
-            ha="center", va="center", transform=ax.transAxes,
-            fontsize=12, color="#64748B",
+        # Generate the dots plot
+        shap.summary_plot(
+            shap_vals, 
+            X_sample_display, 
+            show=False,
+            plot_type="dot",
+            color_bar=True,
+            plot_size=None # We control it with fig
         )
+        plt.title("Feature Impact on Outcomes", fontsize=12, pad=20)
+    except Exception as e:
+        plt.text(0.5, 0.5, f"Plot generation issue: {e}", ha="center", va="center")
 
-    plt.tight_layout()
+    plt.tight_layout(pad=3.0)
     return plt.gcf()

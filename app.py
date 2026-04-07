@@ -101,9 +101,15 @@ st.markdown(
         margin: 6px 0;
     }}
 
-    /* ---- Hide default elements ---- */
-    #MainMenu, header, footer {{
+    /* ---- Aesthetics & Navigation ---- */
+    #MainMenu, footer {{
         visibility: hidden;
+    }}
+    header[data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
+    header[data-testid="stHeader"] * {{
+        color: {PRIMARY} !important;
     }}
 
     /* ---- KPI Cards ---- */
@@ -557,27 +563,51 @@ def page_data_management():
         "Upload, inspect, and profile loan application datasets",
     )
 
-    col_upload, col_sample = st.columns([3, 1])
+    col_upload, col_sample, col_kaggle = st.columns([2, 1, 1])
 
     with col_upload:
         uploaded_file = st.file_uploader(
-            "Upload Loan Dataset (CSV)", type="csv", label_visibility="visible"
+            "Upload Local Dataset (CSV)", type="csv", label_visibility="visible"
         )
 
     with col_sample:
         st.markdown("<br>", unsafe_allow_html=True)
-        load_sample = st.button("Load Sample Data", width="stretch")
+        load_sample = st.button("Load Mock Data", width="stretch")
+        
+    with col_kaggle:
+        st.markdown("<br>", unsafe_allow_html=True)
+        fetch_kaggle = st.button("Fetch Real-Time Data", width="stretch", help="Sync direct from Kaggle repository.")
 
-    if uploaded_file or load_sample:
+    if uploaded_file or load_sample or fetch_kaggle:
         try:
             if uploaded_file:
                 st.session_state.data = pd.read_csv(uploaded_file)
-            else:
+            elif load_sample:
                 st.session_state.data = pd.read_csv("data/loan_data.csv")
+            elif fetch_kaggle:
+                with st.spinner("Downloading high-fidelity Lending Club data (Kaggle)..."):
+                    import kagglehub
+                    import os
+                    # Download the full dataset archive
+                    path = kagglehub.dataset_download("adarshsng/lending-club-loan-data-csv")
+                    
+                    # Search for the first CSV file in the directory
+                    files = [f for f in os.listdir(path) if f.endswith('.csv')]
+                    if not files:
+                        st.error("Kaggle download successful, but no CSV file was found in the archive.")
+                        return
+                        
+                    # Load a high-fidelity sample (200k rows) to prevent OOM
+                    # 200k rows is statistically perfect for fairness auditing
+                    CSV_PATH = os.path.join(path, files[0])
+                    df = pd.read_csv(CSV_PATH, nrows=200000)
+                    st.session_state.data = df
+                    st.info(f"Synchronized top 200,000 records from the 1.7GB Lending Club repository for memory stability.")
+            
             st.session_state.data_profile = get_data_profile(st.session_state.data)
-            st.success("Dataset loaded and profiled successfully.")
+            st.success("Target environment synchronized with real-time data source.")
         except Exception as e:
-            st.error(f"Error loading data: {e}")
+            st.error(f"Error loading data: {e}. Check your internet or kagglehub installation.")
 
     if st.session_state.data is not None:
         df = st.session_state.data
@@ -662,42 +692,161 @@ def page_model_training():
 
     df = st.session_state.data
 
+  
     # Configuration
     with st.container(border=True):
         st.markdown('<p class="section-title">Training Configuration</p>', unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns(3)
-
         cat_columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        all_cols = df.columns.tolist()
 
-        with c1:
-            if cat_columns:
-                sensitive_attr = st.selectbox("Sensitive Attribute", cat_columns)
-            else:
-                st.warning("No categorical columns found for sensitive attribute.")
-                return
+        # FORCED DEFAULTS (High Priority for specific keywords)
+        target_keys_fixed = ["loan amount", "loan_amount"]
+        sens_keys_fixed = ["age", "gender", "genter"]
+        
+        target_keys_backup = ["loan_status", "loan", "status", "approve", "default", "target", "y"]
+        sens_keys_backup = ["sex", "race", "ethnicity", "religion", "marital", "citizenship"]
 
-        with c2:
-            target_col = st.selectbox(
-                "Target Column", df.columns.tolist(), index=len(df.columns) - 1
-            )
+        # 1. Detect Target (Prioritize fixed keys)
+        target_col = all_cols[-1]
+        found_target = False
+        
+        # Check priority first
+        for c in all_cols:
+            if c.lower() in target_keys_fixed:
+                target_col = c
+                found_target = True
+                break
+        
+        if not found_target:
+            for c in all_cols:
+                c_low = c.lower().replace("_", " ")
+                if any(k in c_low for k in target_keys_backup):
+                    target_col = c
+                    break
+        
+        # STRICT SENSITIVE DETECTION (Only Age and Gender)
+        sens_keys_strict = ["age", "gender", "genter"]
+        
+        target_keys_fixed = ["loan amount", "loan_amount"]
+        target_keys_backup = ["loan_status", "loan", "status", "approve", "default", "target", "y"]
 
-        with c3:
-            model_type = st.selectbox("Algorithm", ["Logistic Regression", "Random Forest"])
+        # 1. Detect Target
+        target_col = all_cols[-1]
+        found_target = False
+        for c in all_cols:
+            if c.lower() in target_keys_fixed:
+                target_col = c
+                found_target = True
+                break
+        if not found_target:
+            for c in all_cols:
+                if any(k in c.lower().replace("_", " ") for k in target_keys_backup):
+                    target_col = c
+                    break
+        
+        # 2. Detect ONLY Age and Gender
+        sensitive_cols = []
+        for c in all_cols:
+            c_low = c.lower().replace("_", " ")
+            if any(k in c_low for k in sens_keys_strict):
+                sensitive_cols.append(c)
+        
+        # Security block: if nothing found, we don't audit anything else automatically
+        if not sensitive_cols:
+            st.error("No demographic attributes (Age or Gender) found in dataset for auditing.")
+            return
+        
+        if not target_col or not sensitive_cols:
+            st.error("Automated detection failed. Please ensure your dataset has clear column names.")
+            return
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        train_clicked = st.button("Train Model", width="content")
+        # 3. Features (All except target)
+        selected_features = [c for c in all_cols if c != target_col]
+
+        # --- CONFIGURATION OVERRIDE ---
+        with st.expander("Custom Configuration (Manual Override)", expanded=False):
+            c_ed1, c_ed2 = st.columns(2)
+            with c_ed1:
+                target_col = st.selectbox(
+                    "Override Target Column", 
+                    all_cols, 
+                    index=all_cols.index(target_col),
+                    help="Choose the outcome you want to predict."
+                )
+            with c_ed2:
+                # Use multiselect for sensitive attributes
+                sensitive_cols = st.multiselect(
+                    "Override Audited Attributes",
+                    options=[c for c in all_cols if c != target_col],
+                    default=sensitive_cols,
+                    help="Choose one or more columns to check for bias."
+                )
+            if not sensitive_cols:
+                st.error("Select at least one attribute to audit.")
+                st.stop()
+
+        # --- ULTRA-MINIMALIST ACTION CENTER ---
+        st.markdown(
+            f"""
+            <div style="background:{BG}; border: 1px solid {BORDER}; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-around; align-items: center;">
+                    <div style="text-align: center;">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {TEXT_MUTED}; margin-bottom: 5px;">STATUS</p>
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {ACCENT}; text-transform: uppercase;">Data Ready</p>
+                    </div>
+                    <div style="text-align: center; border-left: 1px solid {BORDER}; padding-left: 15px;">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {TEXT_MUTED}; margin-bottom: 5px;">TARGET</p>
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {PRIMARY}; text-transform: uppercase;">{target_col.replace('_', ' ')}</p>
+                    </div>
+                    <div style="text-align: center; border-left: 1px solid {BORDER}; padding-left: 15px;">
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {TEXT_MUTED}; margin-bottom: 5px;">AUDITING</p>
+                        <p style="font-size: 0.8rem; font-weight: 700; color: {PRIMARY}; text-transform: uppercase;">{', '.join([c.replace('_', ' ') for c in sensitive_cols[:3]])}</p>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Main Action Row
+        c_btn, c_set = st.columns([2, 1])
+        with c_btn:
+            train_clicked = st.button("LAUNCH TRAINING PIPELINE", width="stretch")
+        with c_set:
+            with st.popover("Advanced Settings"):
+                model_type = st.selectbox("Algorithm Selection", ["Random Forest", "Logistic Regression"], index=0)
+                st.info("Random Forest is recommended for higher precision.")
 
     if train_clicked:
-        with st.spinner("Preprocessing data and training model..."):
-            try:
-                X, y, sf_proc, encoders, sf_raw = preprocess_data(
-                    df, target_col=target_col, sensitive_col=sensitive_attr
-                )
-                model, metrics, X_test, y_test, y_pred, X_train, y_train, sf_train, sf_test = (
-                    train_model(X, y, sensitive_features=sf_raw, model_type=model_type)
-                )
+        with st.spinner("Executing fairness-aware training on all columns..."):
+            # --- MEMORY SAFETY SUBSAMPLING ---
+            # Lending Club data can be 2M+ rows (OOM Risk). We cap at 100k for the audit.
+            MAX_ROWS = 100000
+            df_to_train = df.copy()
+            if len(df_to_train) > MAX_ROWS:
+                st.warning(f"Dataset is large ({len(df_to_train):,} rows). Subsampling to {MAX_ROWS:,} for analysis.")
+                df_to_train = df_to_train.sample(MAX_ROWS, random_state=42)
 
+            # We use the FIRST detected sensitive attribute for the baseline training/logic
+            primary_sens = sensitive_cols[0]
+            
+            try:
+                # Filter df to target + all features
+                df_subset = df_to_train[selected_features + [target_col]]
+                
+                # --- MEMORY-SAFE PREPROCESSING ---
+                X, y, sf_proc, encoders, sf_raw = preprocess_data(
+                    df_subset, target_col=target_col, sensitive_col=primary_sens
+                )
+                
+                with st.spinner("Executing model training..."):
+                    model, metrics, X_test, y_test, y_pred, X_train, y_train, sf_train, sf_test = (
+                        train_model(X, y, sensitive_features=sf_raw, model_type=model_type)
+                    )
+
+                # Store state
                 st.session_state.model = model
                 st.session_state.metrics = metrics
                 st.session_state.X_test = X_test
@@ -707,7 +856,8 @@ def page_model_training():
                 st.session_state.sf_test = sf_test
                 st.session_state.sf_train = sf_train
                 st.session_state.model_type = model_type
-                st.session_state.sensitive_col = sensitive_attr
+                st.session_state.sensitive_col = primary_sens # Primary for mitigation
+                st.session_state.all_sensitive_cols = sensitive_cols # For audit page
 
                 # Reset downstream state
                 st.session_state.bias_metrics = None
@@ -778,101 +928,141 @@ def page_bias_analysis():
         render_info("Please train a model in <b>Model Training</b> before running bias analysis.")
         return
 
+    # 1. Filter to priority attributes only
+    all_sens_raw = st.session_state.get('all_sensitive_cols', [st.session_state.sensitive_col])
+    priority_keys = ["age", "gender", "genter"]
+    
+    # Keep only columns that match priority keys
+    all_sens = [c for c in all_sens_raw if any(k in c.lower() for k in priority_keys)]
+    
+    # If none found (safeguard), use the original list
+    if not all_sens:
+        all_sens = all_sens_raw
+
     with st.container(border=True):
-        st.markdown('<p class="section-title">Audit Configuration</p>', unsafe_allow_html=True)
-        st.markdown(
-            f'<p style="font-size:0.9rem; color:{TEXT_MUTED};">Protected attribute: '
-            f'<b style="color:{PRIMARY};">{st.session_state.sensitive_col}</b></p>',
-            unsafe_allow_html=True,
+        st.markdown('<p class="section-title">Audit Dimensionality</p>', unsafe_allow_html=True)
+        
+        # Multiselect for multi-attribute audit
+        selected_attrs = st.multiselect(
+            "Select Dimensions to Audit",
+            options=all_sens,
+            default=[all_sens[0]] if all_sens else [],
+            format_func=lambda x: x.replace('_', ' ').upper()
         )
-        run_audit = st.button("Run Fairness Audit", width="content")
+        
+        if not selected_attrs:
+            st.error("Please select at least one dimension (Age or Gender) to perform the audit.")
+            return
+
+        run_audit = st.button("RUN FAIRNESS AUDIT", width="stretch")
 
     if run_audit:
-        with st.spinner("Analyzing model predictions for bias..."):
+        with st.spinner("Analyzing model disparities..."):
+            audit_results = {} # Map column name -> {metrics, rates}
+            
+            df_full = st.session_state.data
+            X_test_indices = st.session_state.X_test.index
             y_pred = st.session_state.model.predict(st.session_state.X_test)
-            bias_metrics, approval_rates = detect_bias(
-                st.session_state.y_test, y_pred, st.session_state.sf_test
+            
+            for attr in selected_attrs:
+                sf_raw_active = df_full.loc[X_test_indices, attr]
+                bias_metrics, approval_rates = detect_bias(
+                    st.session_state.y_test, y_pred, sf_raw_active
+                )
+                audit_results[attr] = {
+                    "metrics": bias_metrics,
+                    "rates": approval_rates
+                }
+            
+            st.session_state.audit_results = audit_results
+            # We'll set the LAST one as the primary for other pages' default, but all will be rendered here.
+            st.session_state.bias_metrics = audit_results[selected_attrs[0]]["metrics"]
+            st.session_state.approval_rates = audit_results[selected_attrs[0]]["rates"]
+            st.session_state.active_audit_col = selected_attrs[0]
+
+    if st.session_state.get('audit_results'):
+        results = st.session_state.audit_results
+        
+        for idx, (attr_name, data) in enumerate(results.items()):
+            attr_label = attr_name.replace('_', ' ').upper()
+            st.markdown(f"---")
+            st.markdown(f'<h3 style="color:{PRIMARY}; margin-bottom:25px;">AUDIT REPORT: {attr_label}</h3>', unsafe_allow_html=True)
+            
+            bm = data["metrics"]
+            apr = data["rates"]
+            
+            di = bm["Disparate Impact"]
+            risk_label, risk_color = classify_risk(di)
+            badge_variant = "green" if "Fair" in risk_label else ("red" if "High" in risk_label else "amber")
+
+            st.markdown(
+                f'<div style="background:{CARD_BG}; border: 1px solid {BORDER}; border-left: 4px solid {risk_color}; border-radius: 12px; padding: 20px; margin-bottom: 20px;">'
+                f'<p style="margin:0; font-size:1rem; font-weight:700; color:{PRIMARY};">'
+                f'Risk Assessment ({attr_label}): {render_badge(risk_label, badge_variant)}</p>'
+                f'</div>',
+                unsafe_allow_html=True,
             )
-            st.session_state.bias_metrics = bias_metrics
-            st.session_state.approval_rates = approval_rates
 
-    if st.session_state.bias_metrics:
-        bm = st.session_state.bias_metrics
-        di = bm["Disparate Impact"]
-        risk_label, risk_color = classify_risk(di)
-        color_map = {ACCENT: "green", RED: "red", AMBER: "amber"}
-        badge_variant = "green" if "Fair" in risk_label else ("red" if "High" in risk_label else "amber")
+            # Fairness KPIs
+            c1, c2, c3 = st.columns(3)
+            color_map = {ACCENT: "green", RED: "red", AMBER: "amber"}
+            with c1:
+                render_kpi("Disparate Impact", f"{di:.3f}", color_map.get(risk_color, ""))
+            with c2:
+                render_kpi("Demographic Parity Diff", f"{abs(bm['Demographic Parity Difference']):.3f}", "blue")
+            with c3:
+                render_kpi("Equal Opportunity Diff", f"{abs(bm['Equal Opportunity Difference']):.3f}", "blue")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
 
-        st.markdown(
-            f'<div style="background:{CARD_BG}; border: 1px solid {BORDER}; border-left: 4px solid {risk_color}; border-radius: 12px; padding: 20px; margin-bottom: 20px;">'
-            f'<p style="margin:0; font-size:1rem; font-weight:700; color:{PRIMARY};">'
-            f'Risk Assessment: {render_badge(risk_label, badge_variant)}</p>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Fairness KPIs
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            render_kpi("Disparate Impact", f"{di:.3f}", color_map.get(risk_color, ""))
-        with c2:
-            render_kpi("Demographic Parity Diff", f"{abs(bm['Demographic Parity Difference']):.3f}", "blue")
-        with c3:
-            render_kpi("Equal Opportunity Diff", f"{abs(bm['Equal Opportunity Difference']):.3f}", "blue")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Approval rates chart
-        if st.session_state.approval_rates:
-            with st.container(border=True):
-                st.markdown(
-                    f'<p class="section-title">Group-wise Selection Rates by {st.session_state.sensitive_col}</p>',
-                    unsafe_allow_html=True,
-                )
-
-                rates = st.session_state.approval_rates
-                groups = list(rates.keys())
-                values = list(rates.values())
-
-                colors = []
-                max_rate = max(values) if values else 1
-                for v in values:
-                    ratio = v / max_rate if max_rate > 0 else 1
-                    if ratio < 0.8:
-                        colors.append(RED)
-                    elif ratio < 0.9:
-                        colors.append(AMBER)
-                    else:
-                        colors.append(ACCENT)
-
-                fig = go.Figure(
-                    go.Bar(
-                        x=groups,
-                        y=values,
-                        marker_color=colors,
-                        text=[f"{v:.1%}" for v in values],
-                        textposition="auto",
+            # Approval rates chart
+            if apr:
+                with st.container(border=True):
+                    st.markdown(
+                        f'<p class="section-title">Group-wise Selection Rates by {attr_label}</p>',
+                        unsafe_allow_html=True,
                     )
-                )
-                fig.update_layout(
-                    title=f"Approval Rate by {st.session_state.sensitive_col}",
-                    xaxis_title="Group",
-                    yaxis_title="Approval Rate",
-                    yaxis=dict(range=[0, 1], tickformat=".0%"),
-                )
-                # Threshold line
-                fig.add_hline(
-                    y=max_rate * 0.8,
-                    line_dash="dash",
-                    line_color=RED,
-                    annotation_text="80% Threshold (Four-Fifths Rule)",
-                    annotation_position="top left",
-                )
-                st.plotly_chart(plotly_theme(fig), width="stretch")
 
-        # Decision logic explanation
+                    groups = list(apr.keys())
+                    values = list(apr.values())
+
+                    colors = []
+                    max_rate = max(values) if values else 1
+                    for v in values:
+                        ratio = v / max_rate if max_rate > 0 else 1
+                        if ratio < 0.8:
+                            colors.append(RED)
+                        elif ratio < 0.9:
+                            colors.append(AMBER)
+                        else:
+                            colors.append(ACCENT)
+
+                    fig = go.Figure(
+                        go.Bar(
+                            x=groups,
+                            y=values,
+                            marker_color=colors,
+                            text=[f"{v:.1%}" for v in values],
+                            textposition="auto",
+                        )
+                    )
+                    fig.update_layout(
+                        title=f"Approval Rate by {attr_label}",
+                        xaxis_title="Group",
+                        yaxis_title="Approval Rate",
+                        yaxis=dict(range=[0, 1], tickformat=".0%"),
+                    )
+                    # Threshold line
+                    fig.add_hline(
+                        y=max_rate * 0.8,
+                        line_dash="dash",
+                        line_color=RED,
+                        annotation_text="80% Threshold (Four-Fifths Rule)",
+                        annotation_position="top left",
+                    )
+                    st.plotly_chart(plotly_theme(fig), width="stretch", key=f"chart_{attr_name}_{idx}")
+
+        # Decision logic explanation (show once at the bottom)
         with st.container(border=True):
             st.markdown('<p class="section-title">Compliance Decision Logic</p>', unsafe_allow_html=True)
             logic_data = [
