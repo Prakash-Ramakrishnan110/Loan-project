@@ -6,3 +6,5 @@ fairlearn
 aif360
 shap
 plotly
+matplotlib
+fpdf2
