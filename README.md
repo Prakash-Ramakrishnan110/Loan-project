@@ -1,8 +1,8 @@
-# LoanGuard AI
+# Automated Fairness Audit & Bias Mitigation Pipeline for Loan Approval Models
 
 **Automated Fairness Audit and Bias Mitigation Pipeline for Loan Approval Models with Regulatory Compliance Reporting**
 
-LoanGuard AI is an enterprise-grade, production-ready web application that functions as a professional fintech SaaS platform for auditing machine learning models used in loan approval decisions. The system detects demographic bias, applies algorithmic mitigation techniques, provides SHAP-based model explainability, and generates structured regulatory compliance reports.
+This is an enterprise-grade, production-ready web application that functions as a professional fintech SaaS platform for auditing machine learning models used in loan approval decisions. The system detects demographic bias, applies algorithmic mitigation techniques, provides SHAP-based model explainability, and generates structured regulatory compliance reports.
 
 ---
 
@@ -64,7 +64,7 @@ LoanGuard AI is an enterprise-grade, production-ready web application that funct
 | Layer | Technologies |
 |-------|-------------|
 | **Frontend** | Streamlit (advanced UI structuring, custom CSS) |
-| **Backend** | Python, Pandas, NumPy, Scikit-learn |
+| **Backend**  | Python, Pandas, NumPy, Scikit-learn |
 | **Fairness** | Fairlearn, AIF360 |
 | **Explainability** | SHAP |
 | **Visualization** | Plotly (primary), Matplotlib (SHAP plots) |
@@ -162,4 +162,4 @@ This project is developed for academic and demonstration purposes.
 
 ---
 
-*Built with LoanGuard AI -- Automated Fairness Audit Pipeline v2.0*
+*Built with the Automated Fairness Audit & Bias Mitigation Pipeline v2.0*

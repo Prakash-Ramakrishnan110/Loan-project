@@ -1,5 +1,5 @@
 """
-LoanGuard AI - Automated Fairness Audit & Bias Mitigation Pipeline
+Automated Fairness Audit & Bias Mitigation Pipeline for Loan Approval Models
 Enterprise-grade loan model compliance monitoring platform.
 """
 
@@ -13,7 +13,7 @@ from io import BytesIO
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(
-    page_title="LoanGuard AI | Fairness Audit Platform",
+    page_title="Fairness Audit Pipeline | Compliance Platform",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -389,11 +389,11 @@ with st.sidebar:
     st.markdown(
         f"""
         <div style="padding: 4px 4px 10px 4px;">
-            <h2 style="margin:0; font-size:1.25rem; font-weight:800; color:#FFFFFF !important; letter-spacing:-0.02em;">
-                LoanGuard AI
+            <h2 style="margin:0; font-size:1.15555rem; font-weight:800; color:#FFFFFF !important; letter-spacing:-0.02em; line-height:1.1;">
+                Fairness Audit Pipeline
             </h2>
             <p style="margin:2px 0 0 0; font-size:0.75rem; color:{TEXT_MUTED} !important; font-weight:400;">
-                Fairness Audit Platform
+                Loan Approval Models
             </p>
         </div>
         """,
@@ -495,7 +495,7 @@ def page_overview():
 
     # System status panel
     render_info(
-        "Welcome to <b>LoanGuard AI</b> -- the enterprise-grade fairness audit platform. "
+        "Welcome to the <b>Fairness Audit & Bias Mitigation Pipeline</b> -- the enterprise-grade fairness audit platform. "
         "Navigate through the pipeline using the sidebar: upload data, train a model, "
         "detect bias, apply mitigation, compare results, and generate regulatory compliance reports. "
         "All metrics update in real-time across the dashboard."
