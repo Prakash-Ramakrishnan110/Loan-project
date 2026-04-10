@@ -460,7 +460,18 @@ def page_overview():
         "Loan Model Bias Detection and Compliance Monitoring",
     )
 
+    # System status panel moved to top
+    render_info(
+        "Welcome to the <b>Fairness Audit & Bias Mitigation Pipeline</b> -- the enterprise-grade fairness audit platform. "
+        "Navigate through the pipeline using the sidebar: upload data, train a model, "
+        "detect bias, apply mitigation, compare results, and generate regulatory compliance reports. "
+        "All metrics update in real-time across the dashboard."
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # KPI row
+    st.markdown('<p class="section-title">Key Performance Indicators</p>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
@@ -499,20 +510,10 @@ def page_overview():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # System status panel
-    render_info(
-        "Welcome to the <b>Fairness Audit & Bias Mitigation Pipeline</b> -- the enterprise-grade fairness audit platform. "
-        "Navigate through the pipeline using the sidebar: upload data, train a model, "
-        "detect bias, apply mitigation, compare results, and generate regulatory compliance reports. "
-        "All metrics update in real-time across the dashboard."
-    )
+    # Interactive Tabs for details
+    tab1, tab2 = st.tabs(["Pipeline Architecture", "Regulatory Framework"])
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Pipeline overview
-    col_a, col_b = st.columns(2)
-
-    with col_a:
+    with tab1:
         pipeline_steps = [
             ("01", "Data Ingestion", "Upload and profile loan datasets"),
             ("02", "Model Training", "Train classification models with validation"),
@@ -523,16 +524,17 @@ def page_overview():
             ("07", "Reporting", "Generate compliance documentation"),
         ]
         steps_html = "".join(
-            f'<p style="margin:6px 0; font-size:0.88rem; color:{TEXT};">'
-            f'<span style="font-weight:700; color:{ACCENT};">{num}</span>'
-            f'&nbsp;&nbsp;<b>{name}</b> -- {desc}</p>'
+            f'<div style="padding:12px 10px; border-bottom:1px solid {BORDER};">'
+            f'<p style="margin:0; font-size:1rem; color:{TEXT};">'
+            f'<span style="font-weight:800; color:{ACCENT}; margin-right:12px;">{num}</span>'
+            f'<b>{name}</b></p>'
+            f'<p style="margin:6px 0 0 35px; font-size:0.88rem; color:{TEXT_MUTED};">{desc}</p>'
+            f'</div>'
             for num, name, desc in pipeline_steps
         )
-        with st.container(border=True):
-            st.markdown('<p class="section-title">Pipeline Architecture</p>', unsafe_allow_html=True)
-            st.markdown(steps_html, unsafe_allow_html=True)
+        st.markdown(f'<div style="background:{CARD_BG}; border:1px solid {BORDER}; border-radius:12px; padding:20px;">{steps_html}</div>', unsafe_allow_html=True)
 
-    with col_b:
+    with tab2:
         frameworks = [
             ("ECOA", "Equal Credit Opportunity Act"),
             ("FHA", "Fair Housing Act"),
@@ -543,14 +545,14 @@ def page_overview():
             ("CFPB", "Consumer Financial Protection Bureau"),
         ]
         fw_html = "".join(
-            f'<p style="margin:6px 0; font-size:0.88rem; color:{TEXT};">'
-            f'<span style="font-weight:700; color:{PRIMARY};">{abbr}</span>'
-            f'&nbsp;&nbsp;{full_name}</p>'
+            f'<div style="padding:12px 10px; border-bottom:1px solid {BORDER};">'
+            f'<p style="margin:0; font-size:1rem; color:{TEXT};">'
+            f'<span style="font-weight:800; color:{PRIMARY}; margin-right:15px; min-width:80px; display:inline-block;">{abbr}</span>'
+            f'{full_name}</p>'
+            f'</div>'
             for abbr, full_name in frameworks
         )
-        with st.container(border=True):
-            st.markdown('<p class="section-title">Regulatory Framework</p>', unsafe_allow_html=True)
-            st.markdown(fw_html, unsafe_allow_html=True)
+        st.markdown(f'<div style="background:{CARD_BG}; border:1px solid {BORDER}; border-radius:12px; padding:20px;">{fw_html}</div>', unsafe_allow_html=True)
 
 
 # ============================================================
