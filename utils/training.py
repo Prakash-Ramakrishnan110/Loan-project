@@ -3,8 +3,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 import numpy as np
+import streamlit as st
 
 
+@st.cache_resource
 def train_model(X, y, sensitive_features=None, model_type="Logistic Regression"):
     """
     Train a classification model with an 80/20 split.

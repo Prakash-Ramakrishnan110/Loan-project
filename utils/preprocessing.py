@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 import numpy as np
+import streamlit as st
 
 
 def load_data(path):
@@ -9,6 +10,7 @@ def load_data(path):
     return pd.read_csv(path)
 
 
+@st.cache_data
 def preprocess_data(df, target_col="loan_approval", sensitive_col=None):
     """
     Full preprocessing pipeline:
@@ -110,6 +112,7 @@ def preprocess_data(df, target_col="loan_approval", sensitive_col=None):
     return X, y, sensitive_features, encoders, sensitive_features_raw
 
 
+@st.cache_data
 def get_data_profile(df):
     """
     Generate a data profiling summary for the Data Management page.
