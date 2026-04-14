@@ -1,7 +1,8 @@
 streamlit
-pandas
-numpy
-scikit-learn
+pandas<2.2.0
+numpy<2.0.0
+scikit-learn<1.5.0
+scipy<1.12.0
 fairlearn
 aif360
 shap
