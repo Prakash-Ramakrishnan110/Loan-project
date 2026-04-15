@@ -542,9 +542,28 @@ def page_reports():
         generate_clicked = st.button('Generate Report', width='content')
     if generate_clicked:
         with st.spinner('Generating compliance reports...'):
-            report_text = generate_report(st.session_state.metrics, st.session_state.bias_metrics, st.session_state.mitigated_metrics, st.session_state.mitigated_bias_metrics, sensitive_col=st.session_state.sensitive_col, model_type=st.session_state.model_type, mitigation_method=st.session_state.mitigation_method)
+            # Build before/after applicant comparison dataframe
+            df_comparison = None
+            try:
+                if st.session_state.mitigated_model is not None and st.session_state.data is not None:
+                    import numpy as np
+                    df_all = st.session_state.data.copy()
+                    X_test = st.session_state.X_test
+                    y_pred_before = st.session_state.model.predict(X_test)
+                    y_pred_after = st.session_state.mitigated_model.predict(X_test)
+                    # Get original rows that correspond to test set index
+                    test_idx = X_test.index if hasattr(X_test, 'index') else range(len(X_test))
+                    orig_rows = df_all.loc[df_all.index.isin(test_idx)].copy().reset_index(drop=True)
+                    if len(orig_rows) == len(y_pred_before):
+                        orig_rows['Before'] = y_pred_before
+                        orig_rows['After'] = y_pred_after
+                        orig_rows['Decision Changed'] = orig_rows['Before'] != orig_rows['After']
+                        df_comparison = orig_rows
+            except Exception as e:
+                df_comparison = None
+            report_text = generate_report(st.session_state.metrics, st.session_state.bias_metrics, st.session_state.mitigated_metrics, st.session_state.mitigated_bias_metrics, sensitive_col=st.session_state.sensitive_col, model_type=st.session_state.model_type, mitigation_method=st.session_state.mitigation_method, df_comparison=df_comparison)
             st.session_state.report_text = report_text
-            report_pdf = generate_pdf_report(st.session_state.metrics, st.session_state.bias_metrics, st.session_state.mitigated_metrics, st.session_state.mitigated_bias_metrics, sensitive_col=st.session_state.sensitive_col, model_type=st.session_state.model_type, mitigation_method=st.session_state.mitigation_method)
+            report_pdf = generate_pdf_report(st.session_state.metrics, st.session_state.bias_metrics, st.session_state.mitigated_metrics, st.session_state.mitigated_bias_metrics, sensitive_col=st.session_state.sensitive_col, model_type=st.session_state.model_type, mitigation_method=st.session_state.mitigation_method, df_comparison=df_comparison)
             st.session_state.report_pdf = report_pdf
     if st.session_state.report_text:
         st.markdown('<br>', unsafe_allow_html=True)
