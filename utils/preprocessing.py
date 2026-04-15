@@ -21,9 +21,9 @@ def preprocess_data(df, target_col='loan_approval', sensitive_col=None):
         target_was_continuous = True
     elif not pd.api.types.is_numeric_dtype(y_raw):
         le_target = LabelEncoder()
-        y = le_target.fit_transform(y_raw.astype(str))
+        y = le_target.fit_transform(y_raw.astype(str).to_numpy())
     else:
-        y = y_raw.values
+        y = y_raw.to_numpy()
     y = np.ravel(y)
     X = df.drop(columns=[target_col]).copy()
     X = X.replace([np.inf, -np.inf], np.nan)
@@ -34,7 +34,7 @@ def preprocess_data(df, target_col='loan_approval', sensitive_col=None):
             imputer_sf = SimpleImputer(strategy='median')
         else:
             imputer_sf = SimpleImputer(strategy='most_frequent')
-        sf_reshaped = sf_raw.values.reshape(-1, 1)
+        sf_reshaped = sf_raw.to_numpy().reshape(-1, 1)
         sf_imputed = imputer_sf.fit_transform(sf_reshaped)
         sensitive_features_raw = pd.Series(sf_imputed.ravel(), index=sf_raw.index, name=sensitive_col)
     for col in X.columns:
@@ -55,7 +55,7 @@ def preprocess_data(df, target_col='loan_approval', sensitive_col=None):
     encoders = {}
     for col in cat_cols:
         le = LabelEncoder()
-        X[col] = le.fit_transform(X[col].astype(str))
+        X[col] = le.fit_transform(X[col].astype(str).to_numpy())
         encoders[col] = le
     sensitive_features = None
     if sensitive_col and sensitive_col in X.columns:
