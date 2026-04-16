@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import base64
 from io import BytesIO
+import streamlit.components.v1 as components
 st.set_page_config(page_title='Fairness Audit Pipeline | Compliance Platform', layout='wide', initial_sidebar_state='expanded')
 from utils.preprocessing import preprocess_data, get_data_profile
 from utils.training import train_model, evaluate_model
@@ -403,9 +404,74 @@ def page_mitigation():
         st.markdown('<p class="section-title">Mitigation Configuration</p>', unsafe_allow_html=True)
         c1, c2 = st.columns([2, 1])
         with c1:
-            method = st.selectbox('Mitigation Technique', ['Exponentiated Gradient', 'Reweighing'])
-        with c2:
-            st.markdown('<br>', unsafe_allow_html=True)
+            method = st.selectbox('Mitigation Technique', ['Hybrid (Reweighing + Exp Gradient)', 'Exponentiated Gradient', 'Reweighing'], index=0)
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown('<p class="section-title">Mitigation Engine Architecture: Animated Perfect Flow</p>', unsafe_allow_html=True)
+        
+        # Balanced Pro SVG Animation
+        architecture_html = f"""
+        <div style="font-family: 'Inter', sans-serif; text-align: center; padding: 15px; background: {BG}; border-radius: 12px; border: 1px solid {BORDER};">
+            <svg viewBox="0 0 750 70" style="width: 100%; height: auto; display: block; margin: auto;">
+                <defs>
+                    <linearGradient id="gPerfect" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#16A34A;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+
+                <line x1="100" y1="35" x2="200" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
+                <line x1="330" y1="35" x2="430" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
+                <line x1="570" y1="35" x2="650" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
+
+                <g>
+                    <rect x="0" y="15" width="100" height="40" rx="8" fill="#0F172A" />
+                    <text x="50" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">BASELINE</text>
+                </g>
+
+                <g>
+                    <rect x="210" y="15" width="120" height="40" rx="8" fill="#16A34A">
+                        <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite" />
+                    </rect>
+                    <text x="270" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">REWEIGHING</text>
+                </g>
+
+                <g>
+                    <rect x="430" y="15" width="140" height="40" rx="8" fill="#3B82F6">
+                        <animate attributeName="opacity" values="1;0.7;1" dur="2s" begin="0.5s" repeatCount="indefinite" />
+                    </rect>
+                    <text x="500" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">EXP. GRADIENT</text>
+                </g>
+
+                <g>
+                    <rect x="650" y="15" width="90" height="40" rx="8" fill="url(#gPerfect)">
+                        <animate attributeName="opacity" values="1;0.8;1" dur="2s" begin="1s" repeatCount="indefinite" />
+                    </rect>
+                    <text x="695" y="40" text-anchor="middle" fill="white" font-size="16">✓</text>
+                </g>
+
+                <circle cy="35" r="3.5" fill="#16A34A">
+                    <animate attributeName="cx" from="100" to="200" dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+                </circle>
+
+                <circle cy="35" r="3.5" fill="#3B82F6">
+                    <animate attributeName="cx" from="330" to="430" dur="2s" begin="0.7s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.7s" repeatCount="indefinite" />
+                </circle>
+
+                <circle cy="35" r="3.5" fill="#8B5CF6">
+                    <animate attributeName="cx" from="570" to="650" dur="2s" begin="1.4s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.4s" repeatCount="indefinite" />
+                </circle>
+            </svg>
+            <div style="margin-top: 8px; font-size: 0.8rem; color: {TEXT_MUTED}; font-weight: 500;">
+                <span style="color:#16A34A;">●</span> Data Reweighing &nbsp;&nbsp; 
+                <span style="color:#3B82F6;">●</span> Fairness Constraints
+            </div>
+        </div>
+        """
+        components.html(architecture_html, height=140)
+
         st.markdown('<br>', unsafe_allow_html=True)
         apply_clicked = st.button('Apply Mitigation', width='content')
     if apply_clicked:
@@ -441,6 +507,57 @@ def page_mitigation():
             render_kpi('New Precision', f"{mm['Precision']:.2%}", 'blue')
         with c4:
             render_kpi('New F1 Score', f"{mm['F1 Score']:.2%}", 'green')
+
+        st.markdown('<br>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown('<p class="section-title">Mitigation Outcome: Group-wise Fairness Improvement</p>', unsafe_allow_html=True)
+            
+            # Comparison Data
+            apr_before = st.session_state.approval_rates
+            apr_after = st.session_state.mitigated_approval_rates
+            
+            if apr_before and apr_after:
+                groups = list(apr_before.keys())
+                fig = go.Figure()
+                
+                # Baseline
+                fig.add_trace(go.Bar(
+                    name='Baseline Approval',
+                    x=groups,
+                    y=[apr_before.get(g, 0) for g in groups],
+                    marker_color='#94A3B8',
+                    text=[f'{apr_before.get(g, 0):.1%}' for g in groups],
+                    textposition='auto'
+                ))
+                
+                # Mitigated
+                fig.add_trace(go.Bar(
+                    name='Mitigated Approval',
+                    x=groups,
+                    y=[apr_after.get(g, 0) for g in groups],
+                    marker_color=ACCENT,
+                    text=[f'{apr_after.get(g, 0):.1%}' for g in groups],
+                    textposition='auto'
+                ))
+                
+                fig.update_layout(
+                    barmode='group',
+                    title=f'Successive Impact of {st.session_state.mitigation_method} Mitigation',
+                    xaxis_title='Sensitive Group',
+                    yaxis_title='Approval Rate',
+                    yaxis=dict(range=[0, 1], tickformat='.0%'),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
+                # Add 80% rule line
+                max_rate_after = max(apr_after.values()) if apr_after.values() else 1
+                fig.add_hline(y=max_rate_after * 0.8, line_dash="dash", line_color=RED, 
+                             annotation_text="Fairness Threshold (80% Rule)", 
+                             annotation_position="top left")
+                
+                st.plotly_chart(plotly_theme(fig), width='stretch')
+            else:
+                st.warning("Baseline rates not found. Please ensure Bias Analysis was run correctly.")
 
 def page_comparison():
     render_page_header('Performance Comparison', 'Before vs after mitigation: Performance and fairness trade-off analysis')
