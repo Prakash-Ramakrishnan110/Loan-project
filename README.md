@@ -64,6 +64,17 @@ graph TD
 
 ---
 
+## 🛠️ Core Infrastructure & Tech Stack
+
+- **Machine Learning**: `scikit-learn` — The cornerstone for model training, dataset splitting, and performance evaluation.
+- **Fairness Stack**: `Fairlearn` & `AIF360` — Industrial-grade bias detection and mitigation algorithms.
+- **Explainability**: `SHAP` — Game-theory based decision transparency.
+- **Frontend & Visuals**: `Streamlit`, `Plotly`, & `Matplotlib` — Premium dashboarding and HD statistical charting.
+- **Data Engine**: `Pandas` & `NumPy` — High-speed financial data processing and profiling.
+- **Reporting**: `fpdf2` — Automated generation of enterprise-grade PDF audit dossiers.
+
+---
+
 ## 💻 Quick Start
 
 ### Installation
