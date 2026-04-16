@@ -406,73 +406,6 @@ def page_mitigation():
         with c1:
             method = st.selectbox('Mitigation Technique', ['Hybrid (Reweighing + Exp Gradient)', 'Exponentiated Gradient', 'Reweighing'], index=0)
         st.markdown('<br>', unsafe_allow_html=True)
-        st.markdown('<p class="section-title">Mitigation Engine Architecture: Animated Perfect Flow</p>', unsafe_allow_html=True)
-        
-        # Balanced Pro SVG Animation
-        architecture_html = f"""
-        <div style="font-family: 'Inter', sans-serif; text-align: center; padding: 15px; background: {BG}; border-radius: 12px; border: 1px solid {BORDER};">
-            <svg viewBox="0 0 750 70" style="width: 100%; height: auto; display: block; margin: auto;">
-                <defs>
-                    <linearGradient id="gPerfect" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#16A34A;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
-                    </linearGradient>
-                </defs>
-
-                <line x1="100" y1="35" x2="200" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
-                <line x1="330" y1="35" x2="430" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
-                <line x1="570" y1="35" x2="650" y2="35" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="4,4" />
-
-                <g>
-                    <rect x="0" y="15" width="100" height="40" rx="8" fill="#0F172A" />
-                    <text x="50" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">BASELINE</text>
-                </g>
-
-                <g>
-                    <rect x="210" y="15" width="120" height="40" rx="8" fill="#16A34A">
-                        <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite" />
-                    </rect>
-                    <text x="270" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">REWEIGHING</text>
-                </g>
-
-                <g>
-                    <rect x="430" y="15" width="140" height="40" rx="8" fill="#3B82F6">
-                        <animate attributeName="opacity" values="1;0.7;1" dur="2s" begin="0.5s" repeatCount="indefinite" />
-                    </rect>
-                    <text x="500" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">EXP. GRADIENT</text>
-                </g>
-
-                <g>
-                    <rect x="650" y="15" width="90" height="40" rx="8" fill="url(#gPerfect)">
-                        <animate attributeName="opacity" values="1;0.8;1" dur="2s" begin="1s" repeatCount="indefinite" />
-                    </rect>
-                    <text x="695" y="40" text-anchor="middle" fill="white" font-size="16">✓</text>
-                </g>
-
-                <circle cy="35" r="3.5" fill="#16A34A">
-                    <animate attributeName="cx" from="100" to="200" dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
-                </circle>
-
-                <circle cy="35" r="3.5" fill="#3B82F6">
-                    <animate attributeName="cx" from="330" to="430" dur="2s" begin="0.7s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0;1;0" dur="2s" begin="0.7s" repeatCount="indefinite" />
-                </circle>
-
-                <circle cy="35" r="3.5" fill="#8B5CF6">
-                    <animate attributeName="cx" from="570" to="650" dur="2s" begin="1.4s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0;1;0" dur="2s" begin="1.4s" repeatCount="indefinite" />
-                </circle>
-            </svg>
-            <div style="margin-top: 8px; font-size: 0.8rem; color: {TEXT_MUTED}; font-weight: 500;">
-                <span style="color:#16A34A;">●</span> Data Reweighing &nbsp;&nbsp; 
-                <span style="color:#3B82F6;">●</span> Fairness Constraints
-            </div>
-        </div>
-        """
-        components.html(architecture_html, height=140)
-
-        st.markdown('<br>', unsafe_allow_html=True)
         apply_clicked = st.button('Apply Mitigation', width='content')
     if apply_clicked:
         with st.spinner('Applying mitigation and retraining model... This may take a moment.'):
@@ -644,6 +577,81 @@ def page_explainability():
             except Exception as e:
                 st.error(f'SHAP computation failed: {e}')
 
+def page_what_if():
+    render_page_header('What-If Analysis', 'Interactive sandbox for simulating individual loan decisions and auditing model behavior')
+    if st.session_state.model is None:
+        render_info('Please train a model in <b>Model Training</b> first.')
+        return
+    
+    with st.container(border=True):
+        st.markdown('<p class="section-title">Applicant Simulation Sandbox</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-size:0.9rem; color:{TEXT_MUTED};">Adjust the parameters below to see how the models react to different demographic and financial profiles.</p>', unsafe_allow_html=True)
+        
+        # Determine features from training data
+        cols = st.session_state.X_train.columns
+        input_data = {}
+        
+        c1, c2, c3 = st.columns(3)
+        for i, col in enumerate(cols):
+            target_col = c1 if i % 3 == 0 else c2 if i % 3 == 1 else c3
+            with target_col:
+                if st.session_state.X_train[col].dtype == 'object' or len(st.session_state.X_train[col].unique()) < 10:
+                    options = sorted(list(st.session_state.X_train[col].unique()))
+                    input_data[col] = st.selectbox(f'{col}', options)
+                else:
+                    min_val = float(st.session_state.X_train[col].min())
+                    max_val = float(st.session_state.X_train[col].max())
+                    mean_val = float(st.session_state.X_train[col].mean())
+                    input_data[col] = st.slider(f'{col}', min_val, max_val, mean_val)
+
+    st.markdown('<br>', unsafe_allow_html=True)
+    
+    col_left, col_right = st.columns(2)
+    
+    # Process input for prediction
+    input_df = pd.DataFrame([input_data])
+    
+    # Baseline Prediction
+    with col_left:
+        with st.container(border=True):
+            st.markdown('<p class="section-title">Baseline Model Decision</p>', unsafe_allow_html=True)
+            pred_base = st.session_state.model.predict(input_df)[0]
+            prob_base = st.session_state.model.predict_proba(input_df)[0][1] if hasattr(st.session_state.model, 'predict_proba') else None
+            
+            res_label = 'Approved' if pred_base == 1 else 'Denied'
+            res_color = ACCENT if pred_base == 1 else RED
+            st.markdown(f'<div style="text-align:center; padding:20px; border-radius:12px; background:{res_color}20; border:2px solid {res_color};"><h2 style="color:{res_color}; margin:0;">{res_label}</h2></div>', unsafe_allow_html=True)
+            if prob_base is not None:
+                st.progress(prob_base)
+                st.caption(f"Confidence Score: {prob_base:.2%}")
+
+    # Mitigated Prediction
+    with col_right:
+        with st.container(border=True):
+            st.markdown('<p class="section-title">Mitigated Model Decision</p>', unsafe_allow_html=True)
+            if st.session_state.mitigated_model:
+                pred_mit = st.session_state.mitigated_model.predict(input_df)[0]
+                prob_mit = st.session_state.mitigated_model.predict_proba(input_df)[0][1] if hasattr(st.session_state.mitigated_model, 'predict_proba') else None
+                
+                res_label_m = 'Approved' if pred_mit == 1 else 'Denied'
+                res_color_m = ACCENT if pred_mit == 1 else RED
+                st.markdown(f'<div style="text-align:center; padding:20px; border-radius:12px; background:{res_color_m}20; border:2px solid {res_color_m};"><h2 style="color:{res_color_m}; margin:0;">{res_label_m}</h2></div>', unsafe_allow_html=True)
+                if prob_mit is not None:
+                    st.progress(prob_mit)
+                    st.caption(f"Confidence Score: {prob_mit:.2%}")
+                
+                if pred_base != pred_mit:
+                    st.warning("Decision Changed! The fairness engine has corrected the outcome for this profile.")
+                else:
+                    st.info("Stable Decision. Both models agree on this specific profile.")
+            else:
+                st.info("Apply mitigation to compare results.")
+                st.markdown('<div style="height:86px; display:flex; align-items:center; justify-content:center; border: 2px dashed #CBD5E1; border-radius:12px; color:#94A3B8;">Awaiting Mitigation...</div>', unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown('<p class="section-title">Audit Log: Interaction Analysis</p>', unsafe_allow_html=True)
+        st.markdown(f"This simulation shows how shifting demographic fields impacts the loan outcome. In a biased model, changes to sensitive features often flip a 'Decision' even if financial data remains identical. The **Mitigated Model** is designed to maintain consistent decisions regardless of demographic shifts.")
+
 def page_reports():
     render_page_header('Compliance Reports', 'Generate structured regulatory compliance documentation')
     if st.session_state.metrics is None or st.session_state.bias_metrics is None:
@@ -698,5 +706,5 @@ def page_reports():
             st.download_button(label='Download Markdown', data=st.session_state.report_text, file_name='LoanGuard_Compliance_Report.md', mime='text/markdown', width='stretch')
         with c3:
             st.download_button(label='Download Plain Text', data=st.session_state.report_text, file_name='LoanGuard_Compliance_Report.txt', mime='text/plain', width='stretch')
-PAGES = {'Overview': page_overview, 'Data Management': page_data_management, 'Model Training': page_model_training, 'Bias Analysis': page_bias_analysis, 'Mitigation Engine': page_mitigation, 'Performance Comparison': page_comparison, 'Explainability': page_explainability, 'Compliance Reports': page_reports}
+PAGES = {'Overview': page_overview, 'Data Management': page_data_management, 'Model Training': page_model_training, 'Bias Analysis': page_bias_analysis, 'Mitigation Engine': page_mitigation, 'Performance Comparison': page_comparison, 'Explainability': page_explainability, 'What-If Analysis': page_what_if, 'Compliance Reports': page_reports}
 PAGES[page]()
