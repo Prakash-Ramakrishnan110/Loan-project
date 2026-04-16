@@ -63,7 +63,12 @@ def mitigate_bias(X_train, y_train, sensitive_features_train, model_type='Logist
             weights = _get_reweighing_weights(X_train, y_train, sensitive_features_train)
             sf_cleaned = np.array(sensitive_features_train).astype(str).ravel()
             mitigator = ExponentiatedGradient(base_model, constraints=DemographicParity())
-            mitigator.fit(X_train, y_train, sensitive_features=sf_cleaned, sample_weight=weights)
+            try:
+                # Attempt weighted mitigation
+                mitigator.fit(X_train, y_train, sensitive_features=sf_cleaned, sample_weight=weights)
+            except (TypeError, ValueError) as weight_err:
+                print(f"Fairlearn sample_weight failed: {weight_err}. Running without weights.")
+                mitigator.fit(X_train, y_train, sensitive_features=sf_cleaned)
             return mitigator
         except Exception as e:
             print(f"Hybrid mitigation failed: {e}. Falling back to standard model.")
