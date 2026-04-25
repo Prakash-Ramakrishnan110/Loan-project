@@ -71,6 +71,26 @@ def render_info(message):
 def render_page_header(title, subtitle=''):
     st.markdown(f'<div class="page-header"><h1 class="page-title">{title}</h1><p class="page-subtitle">{subtitle}</p></div>', unsafe_allow_html=True)
 
+def get_prediction_and_confidence(model, row):
+    """Safely get prediction and confidence, handling non-probabilistic fairness models."""
+    pred = model.predict(row)[0]
+    conf = "N/A"
+    
+    # Try to get confidence from the model or its unwrapped base
+    target_model = model
+    if hasattr(model, 'model'): # My wrapper
+        target_model = model.model
+    elif hasattr(model, 'predictors_'): # Fairlearn meta-estimator
+        target_model = model.predictors_[0]
+        
+    if hasattr(target_model, 'predict_proba'):
+        try:
+            probs = target_model.predict_proba(row)[0]
+            conf = f"{probs[pred]:.1%}"
+        except:
+            pass
+    return pred, conf
+
 def render_section(title, content_fn=None):
     container = st.container(border=True)
     with container:
@@ -847,7 +867,7 @@ def page_real_time_simulator():
         all_demographics = []
         for i in range(batch_size):
             row = df_sample.iloc[[i]]
-            pred = model.predict(row)[0]
+            pred, conf = get_prediction_and_confidence(model, row)
             all_decisions.append(pred)
             sens_val = st.session_state.sf_test.iloc[i % len(st.session_state.sf_test)]
             all_demographics.append(sens_val)
@@ -859,7 +879,7 @@ def page_real_time_simulator():
                         <span class="stream-ticker-id">APPID: LN-{1000 + i}</span>
                         <span class="stream-ticker-status" style="color:{color};">{status}</span>
                     </div>
-                    <p class="stream-ticker-desc">Group: <b>{sens_val}</b> | Model Confidence: <b>{model.predict_proba(row)[0][pred]:.1%}</b></p>
+                    <p class="stream-ticker-desc">Group: <b>{sens_val}</b> | Model Confidence: <b>{conf}</b></p>
                 </div>
             '''
             with ticker_placeholder.container():
