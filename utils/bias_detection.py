@@ -42,8 +42,9 @@ def detect_intersectional_bias(y_test, y_pred, df_sensitive):
     if df_sensitive is None or df_sensitive.empty:
         return (None, None)
     
-    # Create intersectional groups (e.g., "Male | Black")
-    intersectional_groups = df_sensitive.apply(lambda x: " | ".join(x.astype(str)), axis=1)
+    # Robustly create intersectional groups (handles mixed types and NaNs)
+    # Convert all columns to string, fill NaNs with "Unknown", and join
+    intersectional_groups = df_sensitive.astype(str).replace('nan', 'Unknown').agg(' | '.join, axis=1)
     return detect_bias(y_test, y_pred, intersectional_groups)
 
 def classify_risk(disparate_impact):
