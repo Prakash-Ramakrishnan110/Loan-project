@@ -69,5 +69,18 @@ def preprocess_data(df, target_col='loan_approval', sensitive_col=None):
 def get_data_profile(df):
     missing = df.isna().sum()
     missing_pct = (missing / len(df) * 100).round(2)
-    profile = {'row_count': len(df), 'col_count': len(df.columns), 'missing_counts': missing.to_dict(), 'missing_pct': missing_pct.to_dict(), 'total_missing': int(missing.sum()), 'dtypes': df.dtypes.astype(str).to_dict(), 'numeric_cols': df.select_dtypes(include=['number']).columns.tolist(), 'categorical_cols': df.select_dtypes(exclude=['number']).columns.tolist()}
+    numeric_df = df.select_dtypes(include=['number'])
+    corr_matrix = numeric_df.corr().round(2).to_dict() if not numeric_df.empty else {}
+    
+    profile = {
+        'row_count': len(df),
+        'col_count': len(df.columns),
+        'missing_counts': missing.to_dict(),
+        'missing_pct': missing_pct.to_dict(),
+        'total_missing': int(missing.sum()),
+        'dtypes': df.dtypes.astype(str).to_dict(),
+        'numeric_cols': df.select_dtypes(include=['number']).columns.tolist(),
+        'categorical_cols': df.select_dtypes(exclude=['number']).columns.tolist(),
+        'correlations': corr_matrix
+    }
     return profile
