@@ -107,33 +107,42 @@ def plotly_theme(fig, height=400):
     fig.update_xaxes(gridcolor='#F1F5F9', linecolor=BORDER)
     fig.update_yaxes(gridcolor='#F1F5F9', linecolor=BORDER)
     return fig
-STATE_KEYS = {'data': None, 'data_profile': None, 'model': None, 'metrics': None, 'bias_metrics': None, 'approval_rates': None, 'mitigated_model': None, 'mitigated_metrics': None, 'mitigated_bias_metrics': None, 'mitigated_approval_rates': None, 'X_train': None, 'X_test': None, 'y_train': None, 'y_test': None, 'sensitive_col': None, 'model_type': None, 'sf_test': None, 'sf_train': None, 'mitigation_method': None, 'report_text': None, 'report_pdf': None}
+STATE_KEYS = {'data': None, 'data_profile': None, 'model': None, 'metrics': None, 'bias_metrics': None, 'approval_rates': None, 'mitigated_model': None, 'mitigated_metrics': None, 'mitigated_bias_metrics': None, 'mitigated_approval_rates': None, 'X_train': None, 'X_test': None, 'y_train': None, 'y_test': None, 'sensitive_col': None, 'model_type': None, 'sf_test': None, 'sf_train': None, 'mitigation_method': None, 'report_text': None, 'report_pdf': None, 'active_page': 'Overview', 'active_category': 'Standard Workflow'}
 for key, default in STATE_KEYS.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+# Navigation Configuration
+ORDERED_PAGES = [
+    "Overview", "Data Management", "Model Training", "Bias Analysis", 
+    "Intersectional Audit", "Mitigation Engine", "Performance Comparison",
+    "Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"
+]
+PAGE_TO_CAT = {p: "Standard Workflow" for p in ORDERED_PAGES[:7]}
+PAGE_TO_CAT.update({p: "Advanced Analysis Level" for p in ORDERED_PAGES[7:]})
 with st.sidebar:
     st.markdown(f'<div class="sidebar-header"><h2>Fairness Audit Pipeline</h2></div>', unsafe_allow_html=True)
-    st.divider()
     
-    # Status Panel
-    steps = {'Data Loaded': st.session_state.data is not None, 'Model Trained': st.session_state.model is not None, 'Bias Analyzed': st.session_state.bias_metrics is not None, 'Mitigation Applied': st.session_state.mitigated_model is not None}
-    status_items = ''
-    for step_name, completed in steps.items():
-        icon = '●' if completed else '○'
-        state = 'done' if completed else 'pending'
-        status_items += f'<div class="status-item status-{state}"><b>{icon}</b> {step_name}</div>'
-    st.markdown(f'<div class="status-panel"><p class="status-title">Pipeline Status</p>{status_items}</div>', unsafe_allow_html=True)
+    # Category selection
+    cat_index = ["Standard Workflow", "Advanced Analysis Level"].index(st.session_state.active_category)
+    category = st.selectbox('Category', ["Standard Workflow", "Advanced Analysis Level"], index=cat_index, label_visibility='collapsed')
     
+    if category != st.session_state.active_category:
+        st.session_state.active_category = category
+        st.session_state.active_page = "Overview" if category == "Standard Workflow" else "Explainability"
+        st.rerun()
+
+    st.markdown(f'<p class="status-title" style="margin-top: 40px;">{category.upper()}</p>', unsafe_allow_html=True)
     
-    # Flat list for navigation
-    all_pages = [
-        "Overview", "Data Management", "Model Training",
-        "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison",
-        "Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"
-    ]
+    cat_pages = ["Overview", "Data Management", "Model Training", "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison"] if category == "Standard Workflow" else ["Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"]
     
-    st.markdown('<p class="status-title" style="margin-top: 20px;">SYSTEM NAVIGATION</p>', unsafe_allow_html=True)
-    page = st.radio('Navigation', all_pages, label_visibility='collapsed')
+    page_index = cat_pages.index(st.session_state.active_page) if st.session_state.active_page in cat_pages else 0
+    page_selection = st.radio('Navigation', cat_pages, index=page_index, label_visibility='collapsed')
+    
+    if page_selection != st.session_state.active_page:
+        st.session_state.active_page = page_selection
+        st.rerun()
+
     st.divider()
 
 def page_overview():
@@ -251,29 +260,6 @@ def page_data_management():
         with c4:
             completeness = (1 - profile['total_missing'] / (profile['row_count'] * profile['col_count'])) * 100
             render_kpi('Completeness', f'{completeness:.1f}%', 'green')
-
-        st.markdown('<br>', unsafe_allow_html=True)
-        with st.container(border=True):
-            st.markdown('<p class="section-title">Automated Data Health Diagnosis</p>', unsafe_allow_html=True)
-            diagnostics = []
-            if profile['total_missing'] > 0:
-                diagnostics.append(f"⚠️ **Data Sparsity**: {profile['total_missing']} missing values detected. Automated imputation will be applied.")
-            if profile['row_count'] < 1000:
-                diagnostics.append("⚠️ **Low Volume**: Dataset size is small; model might suffer from high variance.")
-            
-            high_corr = []
-            for col, corrs in profile['correlations'].items():
-                for other_col, val in corrs.items():
-                    if col != other_col and abs(val) > 0.8:
-                        high_corr.append(f"{col} ⟷ {other_col} ({val})")
-            if high_corr:
-                diagnostics.append(f"🔍 **Proxy Bias Risk**: High correlations found: {', '.join(high_corr[:2])}. These may act as proxies for sensitive attributes.")
-            
-            if not diagnostics:
-                st.success("✅ No critical data health issues detected. Ready for preprocessing.")
-            else:
-                for diag in diagnostics:
-                    st.write(diag)
         
         st.markdown('<br>', unsafe_allow_html=True)
         col_preview, col_profile = st.columns([3, 2])
@@ -1032,4 +1018,32 @@ PAGES = {
     'What-If Analysis': page_what_if, 
     'Compliance Reports': page_reports
 }
-PAGES[page]()
+
+# Render Active Page
+PAGES[st.session_state.active_page]()
+
+# Navigation Footer (Back & Next Buttons)
+st.markdown('<br>', unsafe_allow_html=True)
+st.divider()
+curr_idx = ORDERED_PAGES.index(st.session_state.active_page)
+
+c_prev, c_sp, c_next = st.columns([1.2, 1.6, 1.2])
+
+with c_prev:
+    if curr_idx > 0:
+        prev_page_name = ORDERED_PAGES[curr_idx - 1]
+        if st.button(f'← Previous: {prev_page_name}', use_container_width=True, key=f'prev_step_{curr_idx}'):
+            st.session_state.active_page = prev_page_name
+            st.session_state.active_category = PAGE_TO_CAT[prev_page_name]
+            st.rerun()
+
+with c_next:
+    if curr_idx < len(ORDERED_PAGES) - 1:
+        next_page_name = ORDERED_PAGES[curr_idx + 1]
+        if st.button(f'Next Step: {next_page_name} →', use_container_width=True, key=f'next_step_{curr_idx}'):
+            st.session_state.active_page = next_page_name
+            st.session_state.active_category = PAGE_TO_CAT[next_page_name]
+            st.rerun()
+
+st.markdown('<br><br>', unsafe_allow_html=True)
+

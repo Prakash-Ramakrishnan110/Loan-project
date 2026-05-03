@@ -34,11 +34,11 @@ section[data-testid="stSidebar"] .stRadio > div {
 
 section[data-testid="stSidebar"] .stRadio label {
     color: #FFFFFF !important;
-    padding: 10px 16px;
-    border-radius: 8px;
+    padding: 12px 18px;
+    border-radius: 10px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 4px;
-    font-size: 0.9rem;
+    margin-bottom: 6px;
+    font-size: 0.92rem;
     font-weight: 500;
     cursor: pointer;
     border: 1px solid transparent;
@@ -168,9 +168,16 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
 
 /* Specific override for sidebar selectbox (white text) */
 section[data-testid="stSidebar"] div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-    color: #FFFFFF !important;
-    background-color: rgba(255,255,255,0.05) !important;
+    background-color: rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
 }
+
+section[data-testid="stSidebar"] div[data-testid="stSelectbox"] [data-baseweb="select"] * {
+    color: #FFFFFF !important;
+}
+
+
+
 
 div[data-testid="stSelectbox"] svg {
     fill: currentColor !important;
@@ -187,11 +194,11 @@ div[data-testid="stSidebarUserContent"] {
     padding-top: 1rem !important;
 }
 section[data-testid="stSidebar"] div.stVerticalBlock {
-    gap: 0rem !important;
+    gap: 0.8rem !important;
 }
 .sidebar-header {
-    padding: 0px 4px 0px 4px;
-    margin-top: -50px;
+    padding: 10px 4px;
+    margin-top: 0;
 }
 .sidebar-header h2 {
     margin: 0;
@@ -208,13 +215,25 @@ section[data-testid="stSidebar"] div.stVerticalBlock {
     margin-bottom: 10px;
 }
 .status-title {
-    font-size: 0.65rem;
-    font-weight: 600;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: #FFFFFF !important;
-    margin-bottom: 8px;
+    margin-top: 12px;
+    margin-bottom: 12px;
     display: block;
+}
+
+.nav-category-header {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.5) !important;
+    margin: 24px 0 8px 0;
+    padding-left: 8px;
+    border-left: 3px solid #16A34A;
 }
 .status-panel p.status-title {
     margin-bottom: 4px;
@@ -439,3 +458,28 @@ section[data-testid="stSidebar"] div.stVerticalBlock {
     color: TEXT_MUTED_VAR !important;
     opacity: 0.7;
 }
+
+/* ---- Navigation Footer ---- */
+.nav-footer {
+    padding: 20px 0;
+    margin-top: 40px;
+    border-top: 1px solid BORDER_VAR;
+}
+
+/* Base style for nav buttons (using secondary appearance) */
+div.nav-btn-container button {
+    background-color: white !important;
+    color: #1E293B !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+div.nav-btn-container button:hover {
+    background-color: #F8FAFC !important;
+    border-color: #94A3B8 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
