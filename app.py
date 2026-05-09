@@ -175,8 +175,8 @@ def page_overview():
             <h1 style="margin: 0; font-size: 2.2rem; font-weight: 800; color: #FFFFFF !important;">Fairness Audit Platform</h1>
             <p style="margin: 10px 0 0 0; font-size: 1rem; opacity: 0.8; color: #FFFFFF !important;">Real-time bias detection, mitigation, and regulatory compliance for loan approval models.</p>
             <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
-                <span style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: rgba(255,255,255,0.7);">🕒 {now}</span>
-                <span style="background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #4ADE80;">● System Online</span>
+                <span style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: rgba(255,255,255,0.7);">{now}</span>
+                <span style="background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #4ADE80;">SYSTEM ONLINE</span>
                 <span style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: rgba(255,255,255,0.7);">v2.0 Enterprise</span>
             </div>
         </div>
@@ -243,39 +243,27 @@ def page_overview():
                 ("Mitigation", mitigated, f"{st.session_state.get('mitigation_method', 'Applied')}" if mitigated else "Not applied"),
             ]
             
-            status_html = '<div style="margin-top: 12px;">'
             for label, done, detail in status_items:
-                icon = "✅" if done else "⏳"
-                text_color = ACCENT if done else TEXT_MUTED
-                status_html += f'''
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid {BORDER};">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span>{icon}</span>
-                            <span style="font-size: 0.85rem; font-weight: 600; color: {TEXT};">{label}</span>
-                        </div>
-                        <span style="font-size: 0.75rem; color: {text_color}; font-weight: 500;">{detail}</span>
-                    </div>
-                '''
-            status_html += '</div>'
-            st.markdown(status_html, unsafe_allow_html=True)
+                dot_color = ACCENT if done else TEXT_MUTED
+                st.markdown(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid {BORDER};"><div style="display: flex; align-items: center; gap: 10px;"><div style="width: 8px; height: 8px; border-radius: 50%; background: {dot_color};"></div><span style="font-size: 0.85rem; font-weight: 600; color: {TEXT};">{label}</span></div><span style="font-size: 0.75rem; color: {dot_color}; font-weight: 500;">{detail}</span></div>', unsafe_allow_html=True)
     
     with col_actions:
         with st.container(border=True):
             st.markdown('<p class="section-title">Quick Actions</p>', unsafe_allow_html=True)
             
-            if st.button('📊  Load Sample Data', width='stretch', key='qa_data'):
+            if st.button('Load Sample Data', width='stretch', key='qa_data'):
                 st.session_state.active_page = 'Data Management'
                 st.session_state.active_category = 'Standard Workflow'
                 st.rerun()
-            if st.button('🧠  Train AI Model', width='stretch', key='qa_train'):
+            if st.button('Train AI Model', width='stretch', key='qa_train'):
                 st.session_state.active_page = 'Model Training'
                 st.session_state.active_category = 'Standard Workflow'
                 st.rerun()
-            if st.button('⚖️  Run Bias Audit', width='stretch', key='qa_bias'):
+            if st.button('Run Bias Audit', width='stretch', key='qa_bias'):
                 st.session_state.active_page = 'Bias Analysis'
                 st.session_state.active_category = 'Standard Workflow'
                 st.rerun()
-            if st.button('📄  Generate Report', width='stretch', key='qa_report'):
+            if st.button('Generate Report', width='stretch', key='qa_report'):
                 st.session_state.active_page = 'Compliance Reports'
                 st.session_state.active_category = 'Advanced Analysis Level'
                 st.rerun()
