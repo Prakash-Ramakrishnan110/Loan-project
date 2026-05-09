@@ -8,9 +8,8 @@ html, body, .stApp {
 
 /* ---- Sidebar styling ---- */
 section[data-testid="stSidebar"] {
-    background-color: #0F172A;
-    border-right: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+    background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+    border-right: 1px solid rgba(255,255,255,0.05);
 }
 
 /* Base text color for sidebar (non-widgets) */
@@ -77,16 +76,19 @@ header[data-testid="stHeader"] * {
 
 /* ---- KPI Cards ---- */
 .kpi-card {
-    background: CARD_BG_VAR;
-    border: 1px solid BORDER_VAR;
-    border-radius: 12px;
-    padding: 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 .kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: rgba(22, 163, 74, 0.3);
 }
 .kpi-label {
     font-size: 0.75rem;
@@ -148,6 +150,13 @@ hr {
     background: #15803D;
     box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
     transform: translateY(-1px);
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 .stButton > button:active {
     transform: translateY(0);

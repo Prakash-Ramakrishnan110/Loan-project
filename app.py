@@ -146,6 +146,18 @@ with st.sidebar:
         st.session_state.active_page = page_selection
         st.rerun()
 
+    st.markdown('<p class="nav-category-header">Audit Progress</p>', unsafe_allow_html=True)
+    steps = [
+        ("Data Ready", st.session_state.get('data') is not None),
+        ("Model Trained", st.session_state.get('model') is not None),
+        ("Bias Audited", st.session_state.get('bias_metrics') is not None),
+        ("Bias Mitigated", st.session_state.get('mitigated_model') is not None)
+    ]
+    for label, completed in steps:
+        icon = "✅" if completed else "⏳"
+        color = "#4ADE80" if completed else "rgba(255,255,255,0.3)"
+        st.markdown(f'<div style="font-size:0.75rem; color:{color}; margin-bottom:6px; display:flex; align-items:center; gap:8px;">{icon} {label}</div>', unsafe_allow_html=True)
+
     st.divider()
 
 def page_overview():
