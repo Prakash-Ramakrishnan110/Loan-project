@@ -135,7 +135,7 @@ with st.sidebar:
         st.session_state.active_page = "Overview" if category == "Standard Workflow" else "Explainability"
         st.rerun()
 
-    st.markdown(f'<p class="status-title" style="margin-top: 40px;">{category.upper()}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="status-title" style="margin-top: 10px;">{category.upper()}</p>', unsafe_allow_html=True)
     
     cat_pages = ["Overview", "Data Management", "Model Training", "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison"] if category == "Standard Workflow" else ["Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"]
     
@@ -148,15 +148,19 @@ with st.sidebar:
 
     st.markdown('<p class="nav-category-header">Audit Progress</p>', unsafe_allow_html=True)
     steps = [
-        ("Data Ready", st.session_state.get('data') is not None),
-        ("Model Trained", st.session_state.get('model') is not None),
-        ("Bias Audited", st.session_state.get('bias_metrics') is not None),
-        ("Bias Mitigated", st.session_state.get('mitigated_model') is not None)
+        ("Data", st.session_state.get('data') is not None),
+        ("Model", st.session_state.get('model') is not None),
+        ("Audit", st.session_state.get('bias_metrics') is not None),
+        ("Fix", st.session_state.get('mitigated_model') is not None)
     ]
-    for label, completed in steps:
+    
+    # Use columns for high-density progress tracking
+    c1, c2 = st.columns(2)
+    for i, (label, completed) in enumerate(steps):
+        col = c1 if i < 2 else c2
         icon = "✅" if completed else "⏳"
-        color = "#4ADE80" if completed else "rgba(255,255,255,0.3)"
-        st.markdown(f'<div style="font-size:0.75rem; color:{color}; margin-bottom:6px; display:flex; align-items:center; gap:8px;">{icon} {label}</div>', unsafe_allow_html=True)
+        color = "#4ADE80" if completed else "rgba(255,255,255,0.4)"
+        col.markdown(f'<div style="font-size:0.65rem; color:{color}; margin-bottom:4px; display:flex; align-items:center; gap:4px;">{icon} {label}</div>', unsafe_allow_html=True)
 
     st.divider()
 

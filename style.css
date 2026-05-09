@@ -19,12 +19,15 @@ section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3, 
 section[data-testid="stSidebar"] span:not(.st-c6):not(.st-c5) {
     color: #FFFFFF !important;
+    font-size: 0.85rem;
 }
 
 section[data-testid="stSidebar"] > div:first-child {
-    padding-top: 2rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-top: 1rem;
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
+    overflow-y: hidden !important;
+    height: 100vh !important;
 }
 
 section[data-testid="stSidebar"] .stRadio > div {
@@ -33,11 +36,11 @@ section[data-testid="stSidebar"] .stRadio > div {
 
 section[data-testid="stSidebar"] .stRadio label {
     color: #FFFFFF !important;
-    padding: 12px 18px;
-    border-radius: 10px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 6px;
-    font-size: 0.92rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin-bottom: 2px;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
     border: 1px solid transparent;
@@ -203,7 +206,7 @@ div[data-testid="stSidebarUserContent"] {
     padding-top: 1rem !important;
 }
 section[data-testid="stSidebar"] div.stVerticalBlock {
-    gap: 0.8rem !important;
+    gap: 0.3rem !important;
 }
 .sidebar-header {
     padding: 10px 4px;
@@ -235,12 +238,12 @@ section[data-testid="stSidebar"] div.stVerticalBlock {
 }
 
 .nav-category-header {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(255, 255, 255, 0.5) !important;
-    margin: 24px 0 8px 0;
+    margin: 12px 0 6px 0;
     padding-left: 8px;
     border-left: 3px solid #16A34A;
 }
