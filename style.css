@@ -26,8 +26,23 @@ section[data-testid="stSidebar"] > div:first-child {
     padding-top: 1rem;
     padding-left: 0.8rem;
     padding-right: 0.8rem;
+    overflow: hidden !important;
     overflow-y: hidden !important;
     height: 100vh !important;
+    max-height: 100vh !important;
+}
+
+/* Force kill ALL scrolling inside sidebar */
+section[data-testid="stSidebar"] * {
+    overflow-y: hidden !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    overflow: hidden !important;
+    overflow-y: hidden !important;
+    max-height: 100vh !important;
+}
+section[data-testid="stSidebar"] .stVerticalBlockBorderWrapper {
+    overflow: hidden !important;
 }
 
 section[data-testid="stSidebar"] .stRadio > div {
