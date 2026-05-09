@@ -270,16 +270,14 @@ def page_overview():
         
         with st.container(border=True):
             st.markdown('<p class="section-title">Tech Stack</p>', unsafe_allow_html=True)
-            tc1, tc2, tc3 = st.columns(3)
-            with tc1:
-                st.markdown('<div style="background: #EFF6FF; color: #1D4ED8; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center; margin-bottom: 8px;">Scikit-Learn</div>', unsafe_allow_html=True)
-                st.markdown('<div style="background: #FAF5FF; color: #7E22CE; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center;">SHAP</div>', unsafe_allow_html=True)
-            with tc2:
-                st.markdown('<div style="background: #F0FDF4; color: #15803D; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center; margin-bottom: 8px;">Fairlearn</div>', unsafe_allow_html=True)
-                st.markdown('<div style="background: #FEF2F2; color: #B91C1C; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center;">DiCE-ML</div>', unsafe_allow_html=True)
-            with tc3:
-                st.markdown('<div style="background: #FFF7ED; color: #C2410C; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center; margin-bottom: 8px;">AIF360</div>', unsafe_allow_html=True)
-                st.markdown('<div style="background: #ECFDF5; color: #047857; padding: 6px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 600; text-align: center;">Plotly</div>', unsafe_allow_html=True)
+            badge = 'width:100%; padding:8px 0; border-radius:8px; font-size:0.75rem; font-weight:600; text-align:center;'
+            tc1, tc2, tc3 = st.columns(3, gap="small")
+            tc1.markdown(f'<div style="{badge} background:#EFF6FF; color:#1D4ED8; margin-bottom:6px;">Scikit-Learn</div>', unsafe_allow_html=True)
+            tc1.markdown(f'<div style="{badge} background:#FAF5FF; color:#7E22CE;">SHAP</div>', unsafe_allow_html=True)
+            tc2.markdown(f'<div style="{badge} background:#F0FDF4; color:#15803D; margin-bottom:6px;">Fairlearn</div>', unsafe_allow_html=True)
+            tc2.markdown(f'<div style="{badge} background:#FEF2F2; color:#B91C1C;">DiCE-ML</div>', unsafe_allow_html=True)
+            tc3.markdown(f'<div style="{badge} background:#FFF7ED; color:#C2410C; margin-bottom:6px;">AIF360</div>', unsafe_allow_html=True)
+            tc3.markdown(f'<div style="{badge} background:#ECFDF5; color:#047857;">Plotly</div>', unsafe_allow_html=True)
     
     st.markdown('<br>', unsafe_allow_html=True)
     
