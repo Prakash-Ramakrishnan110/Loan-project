@@ -8,21 +8,24 @@ try:
 except ImportError:
     FPDF = None
 
-class CompliancePDF(FPDF):
-
-    def header(self):
-        self.set_font('helvetica', 'B', 16)
-        self.set_text_color(15, 23, 42)
-        self.cell(0, 10, 'Fairness Audit & Compliance Report | Automated Decision Systems', border=False, ln=1, align='L')
-        self.set_draw_color(22, 163, 74)
-        self.line(10, 20, 200, 20)
-        self.ln(10)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('helvetica', 'I', 8)
-        self.set_text_color(100, 116, 139)
-        self.cell(0, 10, f'Page {self.page_no()} | CONFIDENTIAL -- INTERNAL USE ONLY', align='C')
+if FPDF:
+    class CompliancePDF(FPDF):
+    
+        def header(self):
+            self.set_font('helvetica', 'B', 16)
+            self.set_text_color(15, 23, 42)
+            self.cell(0, 10, 'Fairness Audit & Compliance Report | Automated Decision Systems', border=False, ln=1, align='L')
+            self.set_draw_color(22, 163, 74)
+            self.line(10, 20, 200, 20)
+            self.ln(10)
+    
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('helvetica', 'I', 8)
+            self.set_text_color(100, 116, 139)
+            self.cell(0, 10, f'Page {self.page_no()} | CONFIDENTIAL -- INTERNAL USE ONLY', align='C')
+else:
+    CompliancePDF = None
 
 def _get_rejection_remark(row):
     """Generates a pseudo-analytical remark for loan rejection/approval."""
