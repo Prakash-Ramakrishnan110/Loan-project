@@ -112,6 +112,9 @@ for key, default in STATE_KEYS.items():
     if key not in st.session_state:
         st.session_state[key] = default
 
+def get_state(key, default=None):
+    return st.session_state.get(key, default)
+
 # Navigation Configuration
 ORDERED_PAGES = [
     "Overview", "Data Management", "Model Training", "Bias Analysis", 
@@ -597,10 +600,10 @@ def page_intersectional_audit():
 
 def page_mitigation():
     render_page_header('Mitigation Engine', 'Apply fairness-aware retraining techniques to reduce model bias')
-    if st.session_state.model is None:
-        render_info('Please train a model in <b>Model Training</b> first.')
+    if st.session_state.get('model') is None or st.session_state.get('X_test') is None:
+        render_info('Please train a model in <b>Model Training</b> first to initialize the audit data.')
         return
-    if st.session_state.bias_metrics is None:
+    if st.session_state.get('bias_metrics') is None:
         render_info('Please run <b>Bias Analysis</b> first to establish a baseline.')
         return
     with st.container(border=True):
@@ -618,18 +621,31 @@ def page_mitigation():
                     mit_model = mitigate_bias(st.session_state.X_train, st.session_state.y_train, st.session_state.sf_train, model_type=st.session_state.model_type, method=method)
                     
                     st.write("Recalculating performance metrics...")
-                    st.session_state.mitigated_model = mit_model
-                    st.session_state.mitigation_method = method
-                    y_pred_mit = mit_model.predict(st.session_state.X_test)
-                    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-                    new_metrics = {'Accuracy': accuracy_score(st.session_state.y_test, y_pred_mit), 'Precision': precision_score(st.session_state.y_test, y_pred_mit, zero_division=0), 'Recall': recall_score(st.session_state.y_test, y_pred_mit, zero_division=0), 'F1 Score': f1_score(st.session_state.y_test, y_pred_mit, zero_division=0)}
-                    st.session_state.mitigated_metrics = new_metrics
-                    
-                    st.write("Analyzing post-mitigation bias...")
-                    new_bias, new_rates = detect_bias(st.session_state.y_test, y_pred_mit, st.session_state.sf_test)
-                    st.session_state.mitigated_bias_metrics = new_bias
-                    st.session_state.mitigated_approval_rates = new_rates
-                    status.update(label="✅ Mitigation complete!", state="complete", expanded=False)
+                    X_test_active = st.session_state.get('X_test')
+                    y_test_active = st.session_state.get('y_test')
+                    sf_test_active = st.session_state.get('sf_test')
+
+                    if X_test_active is not None and y_test_active is not None:
+                        y_pred_mit = mit_model.predict(X_test_active)
+                        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+                        new_metrics = {
+                            'Accuracy': accuracy_score(y_test_active, y_pred_mit), 
+                            'Precision': precision_score(y_test_active, y_pred_mit, zero_division=0), 
+                            'Recall': recall_score(y_test_active, y_pred_mit, zero_division=0), 
+                            'F1 Score': f1_score(y_test_active, y_pred_mit, zero_division=0)
+                        }
+                        st.session_state.mitigated_metrics = new_metrics
+                        
+                        st.write("Analyzing post-mitigation bias...")
+                        new_bias, new_rates = detect_bias(y_test_active, y_pred_mit, sf_test_active)
+                        st.session_state.mitigated_bias_metrics = new_bias
+                        st.session_state.mitigated_approval_rates = new_rates
+                        st.session_state.mitigated_model = mit_model
+                        st.session_state.mitigation_method = method
+                        status.update(label="✅ Mitigation complete!", state="complete", expanded=False)
+                    else:
+                        st.error("Audit data lost during session. Please re-train the model.")
+                        status.update(label="❌ Mitigation failed", state="error")
                 
                 st.success(f'Bias mitigation via {method} complete.')
             except Exception as e:
