@@ -154,13 +154,13 @@ with st.sidebar:
         ("Fix", st.session_state.get('mitigated_model') is not None)
     ]
     
-    # Use columns for high-density progress tracking
-    c1, c2 = st.columns(2)
-    for i, (label, completed) in enumerate(steps):
-        col = c1 if i < 2 else c2
+    progress_html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px;">'
+    for label, completed in steps:
         icon = "✅" if completed else "⏳"
         color = "#4ADE80" if completed else "rgba(255,255,255,0.4)"
-        col.markdown(f'<div style="font-size:0.65rem; color:{color}; margin-bottom:4px; display:flex; align-items:center; gap:4px;">{icon} {label}</div>', unsafe_allow_html=True)
+        progress_html += f'<div style="font-size: 0.7rem; color: {color}; display: flex; align-items: center; gap: 6px;">{icon} {label}</div>'
+    progress_html += '</div>'
+    st.markdown(progress_html, unsafe_allow_html=True)
 
     st.divider()
 
