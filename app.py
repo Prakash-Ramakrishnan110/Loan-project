@@ -854,18 +854,21 @@ def page_real_time_simulator():
         st.markdown('<p class="section-title">Simulator Control Panel</p>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
-            stream_speed = st.slider('Stream Speed (seconds)', 0.05, 1.0, 0.3)
+            stream_speed = st.slider('Stream Speed (seconds)', 0.01, 1.0, 0.1)
         with c2:
-            batch_size = st.number_input('Simulate N applicants', 10, 5000, 100)
+            max_available = len(st.session_state.get('X_test')) if st.session_state.get('X_test') is not None else 10000
+            batch_size = st.number_input('Simulate Applicants (Current Max)', 10, max_available, max_available)
         with c3:
             st.markdown('<br>', unsafe_allow_html=True)
-            start_stream = st.button('START LIVE AUDIT', width='stretch', type='primary')
+            start_stream = st.button('LAUNCH UNLIMITED AUDIT', width='stretch', type='primary')
     if start_stream:
         ticker_placeholder = st.empty()
         roster_placeholder = st.empty()
+        progress_placeholder = st.empty()
         chart_placeholder = st.empty()
         
-        df_sample = st.session_state.get('X_test').sample(batch_size, replace=True).reset_index(drop=True)
+        X_test_full = st.session_state.get('X_test')
+        df_sample = X_test_full.iloc[:batch_size].reset_index(drop=True)
         model = st.session_state.get('mitigated_model') if st.session_state.get('mitigated_model') else st.session_state.get('model')
         
         all_decisions = []
@@ -917,8 +920,12 @@ def page_real_time_simulator():
                 st.markdown(ticker_html, unsafe_allow_html=True)
             
             with roster_placeholder.container(border=True):
-                st.markdown('<p class="section-title">Live Decision Roster (Most Recent)</p>', unsafe_allow_html=True)
+                st.markdown(f'<p class="section-title">Live Decision Roster ({i+1}/{batch_size})</p>', unsafe_allow_html=True)
                 st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
+            
+            # Progress tracking
+            progress_val = (i + 1) / batch_size
+            progress_placeholder.progress(progress_val, text=f"Auditing Data Stream: {i+1} of {batch_size} applicants processed...")
 
             if (i+1) % 10 == 0:
                 y_pred_rolling = np.array(all_decisions)
