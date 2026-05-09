@@ -165,18 +165,34 @@ with st.sidebar:
     st.divider()
 
 def page_overview():
-    st.markdown(f'<div class="hero-banner"><h1>Fairness Audit Platform</h1><p>Real-time bias detection, mitigation, and regulatory compliance for loan approval models.</p></div>', unsafe_allow_html=True)
+    # Enterprise Hero Banner with live timestamp
+    from datetime import datetime
+    now = datetime.now().strftime('%d %b %Y  |  %H:%M:%S')
+    st.markdown(f'''
+        <div class="hero-banner" style="position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; right: 0; width: 300px; height: 300px; background: radial-gradient(circle, rgba(22,163,74,0.15) 0%, transparent 70%); border-radius: 50%;"></div>
+            <p style="font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); margin: 0 0 8px 0;">Enterprise Compliance Platform</p>
+            <h1 style="margin: 0; font-size: 2.2rem; font-weight: 800; color: #FFFFFF !important;">Fairness Audit Platform</h1>
+            <p style="margin: 10px 0 0 0; font-size: 1rem; opacity: 0.8; color: #FFFFFF !important;">Real-time bias detection, mitigation, and regulatory compliance for loan approval models.</p>
+            <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: rgba(255,255,255,0.7);">🕒 {now}</span>
+                <span style="background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.3); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #4ADE80;">● System Online</span>
+                <span style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: rgba(255,255,255,0.7);">v2.0 Enterprise</span>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
     
+    # KPI Section
     st.markdown('<p class="section-title">Key Performance Indicators</p>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        if st.session_state.metrics:
+        if st.session_state.get('metrics'):
             val = f"{st.session_state.metrics['Accuracy']:.1%}"
             render_kpi('Model Accuracy', val, 'green')
         else:
             render_kpi('Model Accuracy', '--', '')
     with c2:
-        if st.session_state.bias_metrics:
+        if st.session_state.get('bias_metrics'):
             di = st.session_state.bias_metrics['Disparate Impact']
             _, color_hex = classify_risk(di)
             color_map = {ACCENT: 'green', RED: 'red', AMBER: 'amber'}
@@ -184,29 +200,111 @@ def page_overview():
         else:
             render_kpi('DI Ratio (Fairness)', '--', '')
     with c3:
-        if st.session_state.bias_metrics:
+        if st.session_state.get('bias_metrics'):
             dpd = st.session_state.bias_metrics['Demographic Parity Difference']
             render_kpi('Parity Difference', f'{abs(dpd):.3f}', 'blue')
         else:
             render_kpi('Parity Difference', '--', '')
     with c4:
-        if st.session_state.mitigated_model:
+        if st.session_state.get('mitigated_model'):
             render_kpi('Compliance Status', 'Compliant', 'green')
-        elif st.session_state.bias_metrics:
+        elif st.session_state.get('bias_metrics'):
             di = st.session_state.bias_metrics['Disparate Impact']
             label, _ = classify_risk(di)
             clr = 'red' if 'High' in label else 'amber' if 'Moderate' in label else 'green'
             render_kpi('Compliance Status', label, clr)
         else:
             render_kpi('Compliance Status', 'Pending', '')
+    
     st.markdown('<br>', unsafe_allow_html=True)
+    
+    # System Status & Quick Actions Row
+    col_status, col_actions = st.columns([1.5, 1])
+    
+    with col_status:
+        with st.container(border=True):
+            st.markdown('<p class="section-title">System Status</p>', unsafe_allow_html=True)
+            
+            data_loaded = st.session_state.get('data') is not None
+            model_trained = st.session_state.get('model') is not None
+            bias_done = st.session_state.get('bias_metrics') is not None
+            mitigated = st.session_state.get('mitigated_model') is not None
+            
+            total_steps = 4
+            completed = sum([data_loaded, model_trained, bias_done, mitigated])
+            pct = int((completed / total_steps) * 100)
+            
+            st.progress(completed / total_steps, text=f"Pipeline Completion: {pct}%")
+            
+            status_items = [
+                ("Data Ingestion", data_loaded, f"{len(st.session_state.data):,} records" if data_loaded else "Awaiting upload"),
+                ("Model Training", model_trained, f"{st.session_state.get('model_type', 'N/A')}" if model_trained else "Not started"),
+                ("Bias Analysis", bias_done, f"DI: {st.session_state.bias_metrics['Disparate Impact']:.3f}" if bias_done else "Pending audit"),
+                ("Mitigation", mitigated, f"{st.session_state.get('mitigation_method', 'Applied')}" if mitigated else "Not applied"),
+            ]
+            
+            status_html = '<div style="margin-top: 12px;">'
+            for label, done, detail in status_items:
+                icon = "✅" if done else "⏳"
+                text_color = ACCENT if done else TEXT_MUTED
+                status_html += f'''
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid {BORDER};">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>{icon}</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: {TEXT};">{label}</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: {text_color}; font-weight: 500;">{detail}</span>
+                    </div>
+                '''
+            status_html += '</div>'
+            st.markdown(status_html, unsafe_allow_html=True)
+    
+    with col_actions:
+        with st.container(border=True):
+            st.markdown('<p class="section-title">Quick Actions</p>', unsafe_allow_html=True)
+            
+            if st.button('📊  Load Sample Data', width='stretch', key='qa_data'):
+                st.session_state.active_page = 'Data Management'
+                st.session_state.active_category = 'Standard Workflow'
+                st.rerun()
+            if st.button('🧠  Train AI Model', width='stretch', key='qa_train'):
+                st.session_state.active_page = 'Model Training'
+                st.session_state.active_category = 'Standard Workflow'
+                st.rerun()
+            if st.button('⚖️  Run Bias Audit', width='stretch', key='qa_bias'):
+                st.session_state.active_page = 'Bias Analysis'
+                st.session_state.active_category = 'Standard Workflow'
+                st.rerun()
+            if st.button('📄  Generate Report', width='stretch', key='qa_report'):
+                st.session_state.active_page = 'Compliance Reports'
+                st.session_state.active_category = 'Advanced Analysis Level'
+                st.rerun()
+        
+        with st.container(border=True):
+            st.markdown('<p class="section-title">Tech Stack</p>', unsafe_allow_html=True)
+            tech_html = '''
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <span style="background: #EFF6FF; color: #1D4ED8; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">Scikit-Learn</span>
+                    <span style="background: #F0FDF4; color: #15803D; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">Fairlearn</span>
+                    <span style="background: #FFF7ED; color: #C2410C; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">AIF360</span>
+                    <span style="background: #FAF5FF; color: #7E22CE; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">SHAP</span>
+                    <span style="background: #FEF2F2; color: #B91C1C; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">DiCE-ML</span>
+                    <span style="background: #ECFDF5; color: #047857; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;">Plotly</span>
+                </div>
+            '''
+            st.markdown(tech_html, unsafe_allow_html=True)
+    
+    st.markdown('<br>', unsafe_allow_html=True)
+    
+    # Pipeline & Frameworks
     tab1, tab2 = st.tabs(['Pipeline Architecture', 'Regulatory Framework'])
     with tab1:
         st.markdown(f'<div class="list-container">{UI_CONTENT["pipeline"]}</div>', unsafe_allow_html=True)
     with tab2:
         st.markdown(f'<div class="list-container">{UI_CONTENT["frameworks"]}</div>', unsafe_allow_html=True)
 
-    if st.session_state.bias_metrics:
+    # Compliance Gauge (only when data exists)
+    if st.session_state.get('bias_metrics'):
         st.markdown('<br>', unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown('<p class="section-title">Regulatory Compliance Gauge</p>', unsafe_allow_html=True)
@@ -231,6 +329,7 @@ def page_overview():
                         'value': 0.8}}))
             fig.update_layout(height=300, margin=dict(t=0, b=0))
             st.plotly_chart(fig, width='stretch')
+
 
 def page_data_management():
     render_page_header('Data Management', 'Upload, inspect, and profile loan application datasets')
