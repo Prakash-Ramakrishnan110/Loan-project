@@ -146,9 +146,7 @@ with st.sidebar:
         st.session_state.active_page = page_selection
         st.rerun()
 
-    st.write("")
-    st.write("")
-    st.markdown('<p class="nav-category-header">Audit Progress</p>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 30px;"></div><p class="nav-category-header">Audit Progress</p>', unsafe_allow_html=True)
     steps = [
         ("Data", st.session_state.get('data') is not None),
         ("Model", st.session_state.get('model') is not None),

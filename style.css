@@ -45,6 +45,9 @@ section[data-testid="stSidebar"] .stVerticalBlockBorderWrapper {
     overflow: hidden !important;
 }
 
+section[data-testid="stSidebar"] .stRadio {
+    margin-bottom: 30px !important;
+}
 section[data-testid="stSidebar"] .stRadio > div {
     gap: 4px;
 }
