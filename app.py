@@ -854,38 +854,72 @@ def page_real_time_simulator():
         st.markdown('<p class="section-title">Simulator Control Panel</p>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
-            stream_speed = st.slider('Stream Speed (seconds)', 0.1, 2.0, 0.5)
+            stream_speed = st.slider('Stream Speed (seconds)', 0.05, 1.0, 0.3)
         with c2:
-            batch_size = st.number_input('Simulate N applicants', 10, 500, 50)
+            batch_size = st.number_input('Simulate N applicants', 10, 5000, 100)
         with c3:
             st.markdown('<br>', unsafe_allow_html=True)
-            start_stream = st.button('START LIVE AUDIT', width='stretch')
+            start_stream = st.button('START LIVE AUDIT', width='stretch', type='primary')
     if start_stream:
         ticker_placeholder = st.empty()
+        roster_placeholder = st.empty()
         chart_placeholder = st.empty()
-        df_sample = st.session_state.X_test.sample(batch_size, replace=True).reset_index(drop=True)
-        model = st.session_state.mitigated_model if st.session_state.mitigated_model else st.session_state.model
+        
+        df_sample = st.session_state.get('X_test').sample(batch_size, replace=True).reset_index(drop=True)
+        model = st.session_state.get('mitigated_model') if st.session_state.get('mitigated_model') else st.session_state.get('model')
+        
         all_decisions = []
         all_demographics = []
+        history_data = []
+        
+        # Identify key features to show in ticker (dynamic)
+        key_features = [c for c in df_sample.columns if 'income' in c.lower() or 'score' in c.lower() or 'amount' in c.lower() or 'credit' in c.lower()][:3]
+        
         for i in range(batch_size):
             row = df_sample.iloc[[i]]
             pred, conf = get_prediction_and_confidence(model, row)
             all_decisions.append(pred)
-            sens_val = st.session_state.sf_test.iloc[i % len(st.session_state.sf_test)]
+            
+            # Get sensitive value
+            sf_full = st.session_state.get('sf_test')
+            sens_val = sf_full.iloc[i % len(sf_full)]
             all_demographics.append(sens_val)
+            
             status = "✅ APPROVED" if pred == 1 else "❌ DENIED"
             color = ACCENT if pred == 1 else RED
+            
+            # Create feature string
+            feat_str = " | ".join([f"{f}: **{row[f].values[0]}**" for f in key_features])
+            
             ticker_html = f'''
-                <div class="stream-ticker">
-                    <div class="stream-ticker-top">
-                        <span class="stream-ticker-id">APPID: LN-{1000 + i}</span>
-                        <span class="stream-ticker-status" style="color:{color};">{status}</span>
+                <div class="stream-ticker" style="border-left: 5px solid {color}; background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 700; color: {PRIMARY}; font-size: 0.85rem;">APPLICANT ID: LN-{5000 + i}</span>
+                        <span style="font-weight: 800; color: {color}; font-size: 0.9rem;">{status}</span>
                     </div>
-                    <p class="stream-ticker-desc">Group: <b>{sens_val}</b> | Model Confidence: <b>{conf}</b></p>
+                    <p style="margin: 0; font-size: 0.9rem; color: {TEXT};">{feat_str}</p>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <span style="background: {BG}; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Group: <b>{sens_val}</b></span>
+                        <span style="background: {BG}; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Confidence: <b>{conf}</b></span>
+                    </div>
                 </div>
             '''
+            
+            # Add to history (keep last 5)
+            row_dict = row.to_dict('records')[0]
+            row_dict['Decision'] = status
+            row_dict['Group'] = sens_val
+            history_data.insert(0, row_dict)
+            if len(history_data) > 8:
+                history_data.pop()
+
             with ticker_placeholder.container():
                 st.markdown(ticker_html, unsafe_allow_html=True)
+            
+            with roster_placeholder.container(border=True):
+                st.markdown('<p class="section-title">Live Decision Roster (Most Recent)</p>', unsafe_allow_html=True)
+                st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
+
             if (i+1) % 10 == 0:
                 y_pred_rolling = np.array(all_decisions)
                 sf_rolling = np.array(all_demographics)
