@@ -58,13 +58,25 @@ def detect_intersectional_bias(y_test, y_pred, df_sensitive):
     if df_sensitive is None or df_sensitive.empty:
         return (None, None)
     
-    # Robustly create intersectional groups
-    # Using lambda to ensure join is called correctly across all pandas versions
-    intersectional_groups = df_sensitive.astype(str).replace('nan', 'Unknown').apply(lambda x: ' | '.join(x), axis=1)
-    
-    # Ensure indices match for the subsequent filtering in detect_bias
-    # We pass the underlying values to avoid pandas index alignment issues with numpy arrays
-    return detect_bias(y_test, y_pred, intersectional_groups.values)
+    # Robustly create intersectional groups using vectorized string operations
+    # This avoids 'apply' and 'join' which can hit TypeError in specific pandas/python versions
+    try:
+        # Convert all selected columns to string and handle NaNs
+        df_str = df_sensitive.astype(str).replace(['nan', 'None', 'NaN'], 'Unknown')
+        
+        # Start with the first column
+        intersectional_groups = df_str.iloc[:, 0]
+        
+        # Vectorized concatenation for all subsequent columns
+        for i in range(1, df_str.shape[1]):
+            intersectional_groups = intersectional_groups + " | " + df_str.iloc[:, i]
+            
+        return detect_bias(y_test, y_pred, intersectional_groups.values)
+    except Exception as e:
+        # Fallback for unexpected structural issues
+        import pandas as pd
+        fallback = df_sensitive.apply(lambda row: " | ".join([str(val) for val in row]), axis=1)
+        return detect_bias(y_test, y_pred, fallback.values)
 
 def classify_risk(disparate_impact):
     if disparate_impact < 0.8:
