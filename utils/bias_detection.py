@@ -5,11 +5,12 @@ def detect_bias(y_test, y_pred, sensitive_features):
     if sensitive_features is None:
         return (None, None)
     
-    # Force strictly {0, 1} for Fairlearn to handle Streamlit cached data 
-    # where labels might be categorical or multi-class integers.
+    # Ensure all inputs are numpy arrays for consistent indexing
     import pandas as pd
     y_t = np.array(y_test)
     y_p = np.array(y_pred)
+    sf = np.array(sensitive_features)
+    
     unique_vals = np.unique(np.concatenate((y_t, y_p)))
     
     if not set(unique_vals).issubset({0, 1}):
@@ -21,15 +22,15 @@ def detect_bias(y_test, y_pred, sensitive_features):
         y_p = y_p.astype(int)
         
     # Standard Fairlearn metrics
-    dpd = demographic_parity_difference(y_t, y_p, sensitive_features=sensitive_features)
-    eod = equalized_odds_difference(y_t, y_p, sensitive_features=sensitive_features)
+    dpd = demographic_parity_difference(y_t, y_p, sensitive_features=sf)
+    eod = equalized_odds_difference(y_t, y_p, sensitive_features=sf)
     
-    unique_groups = np.unique(sensitive_features)
+    unique_groups = np.unique(sf)
     approval_rates = {}
     for group in unique_groups:
-        mask = (sensitive_features == group)
+        mask = (sf == group)
         if np.sum(mask) > 0:
-            approval_rates[str(group)] = float(np.mean(y_pred[mask]))
+            approval_rates[str(group)] = float(np.mean(y_p[mask]))
         else:
             approval_rates[str(group)] = 0.0
             
@@ -57,10 +58,13 @@ def detect_intersectional_bias(y_test, y_pred, df_sensitive):
     if df_sensitive is None or df_sensitive.empty:
         return (None, None)
     
-    # Robustly create intersectional groups (handles mixed types and NaNs)
-    # Convert all columns to string, fill NaNs with "Unknown", and join
-    intersectional_groups = df_sensitive.astype(str).replace('nan', 'Unknown').agg(' | '.join, axis=1)
-    return detect_bias(y_test, y_pred, intersectional_groups)
+    # Robustly create intersectional groups
+    # Using lambda to ensure join is called correctly across all pandas versions
+    intersectional_groups = df_sensitive.astype(str).replace('nan', 'Unknown').apply(lambda x: ' | '.join(x), axis=1)
+    
+    # Ensure indices match for the subsequent filtering in detect_bias
+    # We pass the underlying values to avoid pandas index alignment issues with numpy arrays
+    return detect_bias(y_test, y_pred, intersectional_groups.values)
 
 def classify_risk(disparate_impact):
     if disparate_impact < 0.8:
