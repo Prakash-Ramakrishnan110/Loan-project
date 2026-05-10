@@ -62,6 +62,13 @@ from utils.explainability import compute_shap_values, get_feature_importance, ge
 from utils.counterfactuals import generate_counterfactuals, get_actionable_diff
 from utils.reporting import generate_report, generate_pdf_report
 
+# Force reload modules to bypass Streamlit's aggressive caching of background files
+import importlib
+import sys
+for mod_name in ['utils.bias_detection', 'utils.preprocessing', 'utils.mitigation']:
+    if mod_name in sys.modules:
+        importlib.reload(sys.modules[mod_name])
+
 def render_kpi(label, value, color_class=''):
     st.markdown(f'<div class="kpi-card"><p class="kpi-label">{label}</p><p class="kpi-value {color_class}">{value}</p></div>', unsafe_allow_html=True)
 
@@ -321,38 +328,77 @@ def page_overview():
 
 def page_data_management():
     render_page_header('Data Management', 'Upload, inspect, and profile loan application datasets')
-    col_upload, col_sample, col_kaggle = st.columns([2, 1, 1])
+    st.markdown('<p class="section-title">Offline Datasets</p>', unsafe_allow_html=True)
+    col_upload, col_sample_sel, col_sample_btn = st.columns([2, 1.5, 1])
     with col_upload:
-        uploaded_file = st.file_uploader('Upload Local Dataset (CSV)', type='csv', label_visibility='visible')
-    with col_sample:
-        st.markdown('<br>', unsafe_allow_html=True)
-        load_sample = st.button('Load Mock Data', width='stretch')
-    with col_kaggle:
-        st.markdown('<br>', unsafe_allow_html=True)
-        fetch_kaggle = st.button('Fetch Real-Time Data', width='stretch', help='Sync direct from Kaggle repository.')
+        uploaded_file = st.file_uploader('Upload Local Dataset (CSV)', type='csv', label_visibility='collapsed')
+    with col_sample_sel:
+        mock_datasets = {
+            'Default Loan Data': 'data/loan_data.csv',
+            'German Credit Risk (Synthetic)': 'data/german_credit_mock.csv',
+            'Home Credit Risk (Synthetic)': 'data/home_credit_mock.csv'
+        }
+        selected_mock = st.selectbox('Select Offline Dataset', list(mock_datasets.keys()), label_visibility='collapsed')
+    with col_sample_btn:
+        load_sample = st.button('Load Offline Data', width='stretch')
+        
+    st.markdown('<br>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<p class="section-title">Kaggle Data Synchronization</p>', unsafe_allow_html=True)
+        col_k_sel, col_k_btn = st.columns([3, 1])
+        with col_k_sel:
+            kaggle_datasets = {
+                'Lending Club Loan Data': 'adarshsng/lending-club-loan-data-csv',
+                'German Credit Risk (Fairness Benchmark)': 'uciml/german-credit',
+                'Global Credit Risk Dataset': 'laotse/credit-risk-dataset'
+            }
+            selected_kaggle = st.selectbox('Select Real-Time Dataset', list(kaggle_datasets.keys()), label_visibility='collapsed')
+        with col_k_btn:
+            fetch_kaggle = st.button('Fetch Kaggle Data', width='stretch')
+
     if uploaded_file or load_sample or fetch_kaggle:
         try:
             if uploaded_file:
                 st.session_state.data = pd.read_csv(uploaded_file)
             elif load_sample:
-                st.session_state.data = pd.read_csv('data/loan_data.csv')
+                import os
+                if not os.path.exists(mock_datasets[selected_mock]):
+                    st.error(f"Offline dataset {selected_mock} not found. Please ensure it was generated.")
+                    return
+                st.session_state.data = pd.read_csv(mock_datasets[selected_mock])
+                st.info(f"Successfully loaded offline dataset: {selected_mock}")
             elif fetch_kaggle:
-                with st.spinner('Downloading high-fidelity Lending Club data (Kaggle)...'):
+                dataset_id = kaggle_datasets[selected_kaggle]
+                with st.spinner(f'Downloading {selected_kaggle} from Kaggle...'):
                     import kagglehub
                     import os
-                    path = kagglehub.dataset_download('adarshsng/lending-club-loan-data-csv')
+                    path = kagglehub.dataset_download(dataset_id)
                     files = [f for f in os.listdir(path) if f.endswith('.csv')]
                     if not files:
                         st.error('Kaggle download successful, but no CSV file was found in the archive.')
                         return
-                    CSV_PATH = os.path.join(path, files[0])
+                    # Prioritize 'train' or 'credit' files if multiple exist
+                    target_file = files[0]
+                    for f in files:
+                        if 'train' in f.lower() or 'credit' in f.lower():
+                            target_file = f
+                            break
+                    CSV_PATH = os.path.join(path, target_file)
                     df = pd.read_csv(CSV_PATH, nrows=200000)
                     st.session_state.data = df
-                    st.info(f'Synchronized top 200,000 records from the 1.7GB Lending Club repository for memory stability.')
+                    st.info(f'Synchronized top {len(df):,} records from {target_file} for memory stability.')
             st.session_state.data_profile = get_data_profile(st.session_state.data)
             st.success('Target environment synchronized with real-time data source.')
         except Exception as e:
-            st.error(f'Error loading data: {e}. Check your internet or kagglehub installation.')
+            err_str = str(e).lower()
+            if "unreachable host" in err_str or "max retries exceeded" in err_str or "connection" in err_str:
+                st.error(
+                    "**Network Connection Error:** Unable to reach Kaggle servers. \n\n"
+                    "It seems your environment is offline or a firewall is blocking the connection. "
+                    "Please use the **'Load Mock Data'** button or **'Upload Local Dataset'** options instead."
+                )
+            else:
+                st.error(f'**Error loading data:** {e} \n\nPlease ensure your Kaggle credentials are set up correctly or use the offline data options.')
     if st.session_state.data is not None:
         df = st.session_state.data
         profile = st.session_state.data_profile or get_data_profile(df)
@@ -476,7 +522,9 @@ def page_model_training():
             with c_ed1:
                 target_col = st.selectbox('Override Target Column', all_cols, index=all_cols.index(target_col), help='Choose the outcome you want to predict.')
             with c_ed2:
-                sensitive_cols = st.multiselect('Override Audited Attributes', options=[c for c in all_cols if c != target_col], default=sensitive_cols, help='Choose one or more columns to check for bias.')
+                available_sens_options = [c for c in all_cols if c != target_col]
+                valid_default_sens = [c for c in sensitive_cols if c in available_sens_options]
+                sensitive_cols = st.multiselect('Override Audited Attributes', options=available_sens_options, default=valid_default_sens, help='Choose one or more columns to check for bias.')
             if not sensitive_cols:
                 st.error('Select at least one attribute to audit.')
                 st.stop()
@@ -1024,7 +1072,7 @@ def page_real_time_simulator():
             
             with roster_placeholder.container(border=True):
                 st.markdown(f'<p class="section-title">Live Decision Roster ({i+1}/{batch_size})</p>', unsafe_allow_html=True)
-                st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(history_data), width='stretch', hide_index=True)
             
             # Progress tracking
             progress_val = (i + 1) / batch_size
@@ -1192,7 +1240,7 @@ c_prev, c_sp, c_next = st.columns([1.2, 1.6, 1.2])
 with c_prev:
     if curr_idx > 0:
         prev_page_name = ORDERED_PAGES[curr_idx - 1]
-        if st.button(f'← Previous: {prev_page_name}', use_container_width=True, key=f'prev_step_{curr_idx}'):
+        if st.button(f'← Previous: {prev_page_name}', width='stretch', key=f'prev_step_{curr_idx}'):
             st.session_state.active_page = prev_page_name
             st.session_state.active_category = PAGE_TO_CAT[prev_page_name]
             st.rerun()
@@ -1200,7 +1248,7 @@ with c_prev:
 with c_next:
     if curr_idx < len(ORDERED_PAGES) - 1:
         next_page_name = ORDERED_PAGES[curr_idx + 1]
-        if st.button(f'Next Step: {next_page_name} →', use_container_width=True, key=f'next_step_{curr_idx}'):
+        if st.button(f'Next Step: {next_page_name} →', width='stretch', key=f'next_step_{curr_idx}'):
             st.session_state.active_page = next_page_name
             st.session_state.active_category = PAGE_TO_CAT[next_page_name]
             st.rerun()

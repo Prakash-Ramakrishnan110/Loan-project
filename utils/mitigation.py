@@ -50,19 +50,26 @@ def _get_reweighing_weights(X_train, y_train, sensitive_features_train):
 
 def _get_base_model(model_type):
     if model_type == 'Random Forest':
-        return RandomForestClassifier(random_state=42, n_estimators=50)
-    return LogisticRegression(random_state=42, max_iter=1000)
+        return RandomForestClassifier(random_state=42, n_estimators=20, max_depth=10, n_jobs=-1)
+    return LogisticRegression(random_state=42, max_iter=200, n_jobs=-1)
 
 def mitigate_bias(X_train, y_train, sensitive_features_train, model_type='Logistic Regression', method='Exponentiated Gradient'):
     base_model = _get_base_model(model_type)
     X_train = pd.DataFrame(X_train).fillna(0).replace([np.inf, -np.inf], 0)
     y_train = np.ravel(y_train)
     
+    # Fast sub-sampling for extremely large datasets during heavy mitigation
+    if len(X_train) > 20000 and method != 'Reweighing':
+        idx = np.random.choice(len(X_train), 20000, replace=False)
+        X_train = X_train.iloc[idx]
+        y_train = y_train[idx]
+        sensitive_features_train = np.array(sensitive_features_train)[idx]
+
     if method == 'Hybrid (Reweighing + Exp Gradient)':
         try:
             weights = _get_reweighing_weights(X_train, y_train, sensitive_features_train)
             sf_cleaned = np.array(sensitive_features_train).astype(str).ravel()
-            mitigator = ExponentiatedGradient(base_model, constraints=DemographicParity())
+            mitigator = ExponentiatedGradient(base_model, constraints=DemographicParity(), eps=0.05, max_iter=10)
             try:
                 # Attempt weighted mitigation
                 mitigator.fit(X_train, y_train, sensitive_features=sf_cleaned, sample_weight=weights)
@@ -78,7 +85,7 @@ def mitigate_bias(X_train, y_train, sensitive_features_train, model_type='Logist
     elif method == 'Exponentiated Gradient':
         try:
             sf_cleaned = np.array(sensitive_features_train).astype(str).ravel()
-            mitigator = ExponentiatedGradient(base_model, constraints=DemographicParity())
+            mitigator = ExponentiatedGradient(base_model, constraints=DemographicParity(), eps=0.05, max_iter=10)
             mitigator.fit(X_train, y_train, sensitive_features=sf_cleaned)
             return mitigator
         except Exception as e:

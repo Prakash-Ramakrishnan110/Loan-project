@@ -15,15 +15,27 @@ def preprocess_data(df, target_col='loan_approval', sensitive_col=None):
     if isinstance(y_raw, pd.DataFrame):
         y_raw = y_raw.iloc[:, 0]
     target_was_continuous = False
-    if pd.api.types.is_numeric_dtype(y_raw) and y_raw.nunique() > 10:
-        median_val = y_raw.median()
-        y = (y_raw > median_val).astype(int)
-        target_was_continuous = True
-    elif not pd.api.types.is_numeric_dtype(y_raw):
-        le_target = LabelEncoder()
-        y = le_target.fit_transform(y_raw.astype(str).to_numpy())
+    if pd.api.types.is_numeric_dtype(y_raw):
+        if y_raw.nunique() > 2:
+            median_val = y_raw.median()
+            y = (y_raw > median_val).astype(int)
+            target_was_continuous = True
+        else:
+            # Numeric binary, ensure it is strictly 0 and 1
+            unique_vals = y_raw.dropna().unique()
+            if set(unique_vals).issubset({0, 1, 0.0, 1.0}):
+                y = y_raw.to_numpy()
+            else:
+                le_target = LabelEncoder()
+                y = le_target.fit_transform(y_raw.astype(str).to_numpy())
     else:
-        y = y_raw.to_numpy()
+        if y_raw.nunique() > 2:
+            # Multiclass categorical: Binarize against the most frequent class
+            top_class = y_raw.mode()[0]
+            y = (y_raw == top_class).astype(int)
+        else:
+            le_target = LabelEncoder()
+            y = le_target.fit_transform(y_raw.astype(str).to_numpy())
     y = np.ravel(y)
     X = df.drop(columns=[target_col]).copy()
     X = X.replace([np.inf, -np.inf], np.nan)

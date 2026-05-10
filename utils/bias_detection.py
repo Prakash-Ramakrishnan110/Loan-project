@@ -5,9 +5,24 @@ def detect_bias(y_test, y_pred, sensitive_features):
     if sensitive_features is None:
         return (None, None)
     
+    # Force strictly {0, 1} for Fairlearn to handle Streamlit cached data 
+    # where labels might be categorical or multi-class integers.
+    import pandas as pd
+    y_t = np.array(y_test)
+    y_p = np.array(y_pred)
+    unique_vals = np.unique(np.concatenate((y_t, y_p)))
+    
+    if not set(unique_vals).issubset({0, 1}):
+        top_class = pd.Series(y_t).mode()[0]
+        y_t = (y_t == top_class).astype(int)
+        y_p = (y_p == top_class).astype(int)
+    else:
+        y_t = y_t.astype(int)
+        y_p = y_p.astype(int)
+        
     # Standard Fairlearn metrics
-    dpd = demographic_parity_difference(y_test, y_pred, sensitive_features=sensitive_features)
-    eod = equalized_odds_difference(y_test, y_pred, sensitive_features=sensitive_features)
+    dpd = demographic_parity_difference(y_t, y_p, sensitive_features=sensitive_features)
+    eod = equalized_odds_difference(y_t, y_p, sensitive_features=sensitive_features)
     
     unique_groups = np.unique(sensitive_features)
     approval_rates = {}
