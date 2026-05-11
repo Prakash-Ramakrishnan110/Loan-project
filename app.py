@@ -131,7 +131,15 @@ ORDERED_PAGES = [
 PAGE_TO_CAT = {p: "Standard Workflow" for p in ORDERED_PAGES[:7]}
 PAGE_TO_CAT.update({p: "Advanced Analysis Level" for p in ORDERED_PAGES[7:]})
 with st.sidebar:
-    st.markdown(f'<div class="sidebar-header"><h2>Fairness Audit Pipeline</h2></div>', unsafe_allow_html=True)
+    st.markdown(f'''
+        <div class="sidebar-header">
+            <h2 style="color: #4ADE80 !important; font-size: 1.4rem;">FAIRNESS AUDIT</h2>
+            <p style="font-size: 0.65rem; color: rgba(255,255,255,0.6); margin-top: 4px; letter-spacing: 0.05em;">ENTERPRISE COMPLIANCE v2.0</p>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    
+    st.markdown('<p class="status-title" style="margin-top: 15px;">NAVIGATION</p>', unsafe_allow_html=True)
     
     # Category selection
     cat_index = ["Standard Workflow", "Advanced Analysis Level"].index(st.session_state.active_category)
@@ -142,8 +150,6 @@ with st.sidebar:
         st.session_state.active_page = "Overview" if category == "Standard Workflow" else "Explainability"
         st.rerun()
 
-    st.markdown(f'<p class="status-title" style="margin-top: 10px;">{category.upper()}</p>', unsafe_allow_html=True)
-    
     cat_pages = ["Overview", "Data Management", "Model Training", "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison"] if category == "Standard Workflow" else ["Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"]
     
     page_index = cat_pages.index(st.session_state.active_page) if st.session_state.active_page in cat_pages else 0
@@ -153,19 +159,20 @@ with st.sidebar:
         st.session_state.active_page = page_selection
         st.rerun()
 
-    st.markdown('<div style="height: 30px;"></div><p class="nav-category-header">Audit Progress</p>', unsafe_allow_html=True)
+
+    st.markdown('<p class="nav-category-header" style="margin-top: 15px;">AUDIT PROGRESS</p>', unsafe_allow_html=True)
     steps = [
-        ("Data", st.session_state.get('data') is not None),
-        ("Model", st.session_state.get('model') is not None),
-        ("Audit", st.session_state.get('bias_metrics') is not None),
-        ("Fix", st.session_state.get('mitigated_model') is not None)
+        ("Data Ingestion", st.session_state.get('data') is not None),
+        ("Model Training", st.session_state.get('model') is not None),
+        ("Bias Auditing", st.session_state.get('bias_metrics') is not None),
+        ("Mitigation", st.session_state.get('mitigated_model') is not None)
     ]
     
-    progress_html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px;">'
+    progress_html = '<div style="margin-top: 8px;">'
     for label, completed in steps:
         icon = "✅" if completed else "⏳"
         color = "#4ADE80" if completed else "rgba(255,255,255,0.4)"
-        progress_html += f'<div style="font-size: 0.7rem; color: {color}; display: flex; align-items: center; gap: 6px;">{icon} {label}</div>'
+        progress_html += f'<div style="font-size: 0.72rem; color: {color}; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;"><span>{label}</span> <span>{icon}</span></div>'
     progress_html += '</div>'
     st.markdown(progress_html, unsafe_allow_html=True)
 
@@ -270,10 +277,139 @@ def page_overview():
                 st.session_state.active_page = 'Bias Analysis'
                 st.session_state.active_category = 'Standard Workflow'
                 st.rerun()
+            if st.button('Check Individual Loan', width='stretch', key='qa_individual', type='primary'):
+                st.session_state.show_individual_check = True
+                st.rerun()
             if st.button('Generate Report', width='stretch', key='qa_report'):
                 st.session_state.active_page = 'Compliance Reports'
                 st.session_state.active_category = 'Advanced Analysis Level'
                 st.rerun()
+    
+    # Individual Loan Check Section
+    if st.session_state.get('show_individual_check'):
+        st.markdown('<br>', unsafe_allow_html=True)
+        with st.container(border=True):
+            col_header, col_close = st.columns([4, 1])
+            with col_header:
+                st.markdown('<p class="section-title">Individual Loan Application Check</p>', unsafe_allow_html=True)
+            with col_close:
+                if st.button('✕', key='close_individual_check', help='Close individual check'):
+                    st.session_state.show_individual_check = False
+                    st.rerun()
+            
+            if st.session_state.model is None:
+                render_info('Please train a model in <b>Model Training</b> first.')
+                st.session_state.show_individual_check = False
+                st.rerun()
+                return
+            
+            # Get key features for individual check with flexible matching
+            key_features = ['income', 'credit_score', 'credit', 'age', 'gender', 'loan_amount', 'loan', 'amount']
+            available_features = []
+            
+            # Try to find matching columns (case-insensitive and partial matches)
+            for feature in key_features:
+                for col in st.session_state.X_train.columns:
+                    if feature.lower() in col.lower() or col.lower() in feature.lower():
+                        if col not in available_features:
+                            available_features.append(col)
+                            break
+            
+            # If no key features found, use first 5 columns
+            if not available_features:
+                available_features = list(st.session_state.X_train.columns[:5])
+            
+            # Limit to maximum 6 fields for better UI
+            available_features = available_features[:6]
+            
+            # Debug: Show available columns
+            st.markdown(f'<p style="font-size: 0.8rem; color: #6B7280; margin-bottom: 15px;"><strong>Available Fields:</strong> {", ".join(available_features)}</p>', unsafe_allow_html=True)
+            
+            input_data = {}
+            c1, c2 = st.columns(2)
+            
+            for i, col in enumerate(available_features):
+                target_col = c1 if i % 2 == 0 else c2
+                with target_col:
+                    # Create better label
+                    label = col.replace("_", " ").replace("-", " ").title()
+                    
+                    if st.session_state.X_train[col].dtype == 'object' or len(st.session_state.X_train[col].unique()) < 10:
+                        options = sorted(list(st.session_state.X_train[col].unique()))
+                        input_data[col] = st.selectbox(f'{label}', options, key=f'individual_{col}')
+                    else:
+                        min_val = float(st.session_state.X_train[col].min())
+                        max_val = float(st.session_state.X_train[col].max())
+                        mean_val = float(st.session_state.X_train[col].mean())
+                        input_data[col] = st.number_input(f'{label}', min_val, max_val, mean_val, key=f'individual_{col}')
+            
+            # Add missing columns with defaults
+            for c in st.session_state.X_train.columns:
+                if c not in input_data:
+                    input_data[c] = st.session_state.X_train[c].mode()[0] if not pd.api.types.is_numeric_dtype(st.session_state.X_train[c]) else st.session_state.X_train[c].mean()
+            
+            # Ensure correct feature order
+            input_df = pd.DataFrame([input_data])
+            input_df = input_df[st.session_state.X_train.columns]
+            
+            st.markdown('<br>', unsafe_allow_html=True)
+            
+            # Prediction buttons
+            col_pred1, col_pred2, col_space = st.columns([1, 1, 1])
+            with col_pred1:
+                check_individual = st.button('Check Application', width='stretch', type='primary')
+            with col_pred2:
+                if st.session_state.mitigated_model:
+                    check_mitigated = st.button('Check Fair Application', width='stretch')
+                else:
+                    st.info('No mitigated model')
+            
+            # Display results
+            if check_individual or (st.session_state.mitigated_model and check_mitigated):
+                if check_individual:
+                    pred = st.session_state.model.predict(input_df)[0]
+                    model_type = "Baseline Model"
+                else:
+                    pred = st.session_state.mitigated_model.predict(input_df)[0]
+                    model_type = "Fairness-Adjusted Model"
+                
+                # Display decision
+                col_decision, col_details = st.columns([1, 2])
+                with col_decision:
+                    if pred == 1:
+                        st.markdown('''
+                            <div style="text-align: center; padding: 20px; background: #F0FDF4; border: 2px solid #16A34A; border-radius: 8px;">
+                                <h2 style="color: #16A34A; margin: 0;">✅ APPROVED</h2>
+                                <p style="color: #15803D; margin: 5px 0 0 0;">Loan Application Accepted</p>
+                            </div>
+                        ''', unsafe_allow_html=True)
+                    else:
+                        st.markdown('''
+                            <div style="text-align: center; padding: 20px; background: #FEF2F2; border: 2px solid #DC2626; border-radius: 8px;">
+                                <h2 style="color: #DC2626; margin: 0;">❌ DENIED</h2>
+                                <p style="color: #B91C1C; margin: 5px 0 0 0;">Loan Application Rejected</p>
+                            </div>
+                        ''', unsafe_allow_html=True)
+                
+                with col_details:
+                    st.markdown(f'<p style="font-weight: 600; color: {PRIMARY}; margin-bottom: 10px;">Decision Details</p>', unsafe_allow_html=True)
+                    st.markdown(f'''
+                        <div style="background: #F8FAFC; padding: 15px; border-radius: 6px; border-left: 4px solid {PRIMARY};">
+                            <p style="margin: 0; font-size: 0.9rem;"><strong>Model:</strong> {model_type}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9rem;"><strong>Applicant Profile:</strong> {", ".join([f"{k}: {v}" for k, v in input_data.items()][:3])}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 0.9rem;"><strong>Decision:</strong> {"Approved" if pred == 1 else "Denied"}</p>
+                        </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    # Add recommendation for denied applications
+                    if pred == 0:
+                        st.markdown('''
+                            <div style="background: #FEF3C7; padding: 12px; border-radius: 6px; margin-top: 10px;">
+                                <p style="margin: 0; font-size: 0.85rem; color: #92400E;">
+                                    <strong>💡 Recommendation:</strong> Visit "What-If Analysis" for actionable steps to improve approval chances.
+                                </p>
+                            </div>
+                        ''', unsafe_allow_html=True)
         
         with st.container(border=True):
             st.markdown('<p class="section-title" style="margin-bottom: 12px;">Tech Stack</p>', unsafe_allow_html=True)
@@ -446,13 +582,37 @@ def page_data_management():
         with col_target:
             with st.container(border=True):
                 st.markdown('<p class="section-title">Target Distribution</p>', unsafe_allow_html=True)
-                target_col = 'loan_approval' # Default or detected
-                if target_col in df.columns:
+                # Try to find target column with flexible matching
+                target_col = None
+                possible_targets = ['loan_approval', 'loan_status', 'approval', 'target', 'loan', 'status', 'class', 'label']
+                
+                for target in possible_targets:
+                    for col in df.columns:
+                        if target.lower() in col.lower() or col.lower() in target.lower():
+                            target_col = col
+                            break
+                    if target_col:
+                        break
+                
+                # If still not found, try to find binary columns
+                if not target_col:
+                    for col in df.columns:
+                        if df[col].dtype in ['object', 'category', 'bool']:
+                            unique_vals = df[col].dropna().unique()
+                            if len(unique_vals) == 2:
+                                target_col = col
+                                break
+                
+                if target_col and target_col in df.columns:
                     target_counts = df[target_col].value_counts()
                     fig_target = go.Figure(data=[go.Pie(labels=['Denied', 'Approved'], values=target_counts.values, hole=.4, marker_colors=[RED, ACCENT])])
                     st.plotly_chart(plotly_theme(fig_target, 400), width='stretch')
                 else:
-                    st.warning(f"Column '{target_col}' not found.")
+                    if target_col:
+                        st.warning(f"Target column '{target_col}' not found in dataset.")
+                    else:
+                        st.warning("No suitable target column found. Please ensure your dataset has a binary target column (e.g., 'loan_approval', 'loan_status', 'approval', 'target', 'status', 'class', or 'label').")
+                        st.info("Available columns: " + ", ".join(df.columns.tolist()))
         
         missing_cols = {k: v for k, v in profile['missing_counts'].items() if v > 0}
         if missing_cols:
@@ -461,6 +621,126 @@ def page_data_management():
                 fig = go.Figure(go.Bar(x=list(missing_cols.keys()), y=list(missing_cols.values()), marker_color=ACCENT, text=list(missing_cols.values()), textposition='auto'))
                 fig.update_layout(xaxis_title='Column', yaxis_title='Missing Count')
                 st.plotly_chart(plotly_theme(fig, 350), width='stretch')
+
+    # Individual Loan Check Section in Data Management
+    st.markdown('<br>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<p class="section-title">Individual Application Check</p>', unsafe_allow_html=True)
+        
+        if st.session_state.model is None:
+            render_info('Please train a model in <b>Model Training</b> first to enable individual checking.')
+        else:
+            # Toggle for individual check
+            show_individual_dm = st.checkbox('Enable Individual Application Check', key='dm_individual_check')
+            
+            if show_individual_dm:
+                # Get key features for individual check with flexible matching
+                key_features = ['income', 'credit_score', 'credit', 'age', 'gender', 'loan_amount', 'loan', 'amount']
+                available_features = []
+                
+                # Try to find matching columns (case-insensitive and partial matches)
+                for feature in key_features:
+                    for col in st.session_state.X_train.columns:
+                        if feature.lower() in col.lower() or col.lower() in feature.lower():
+                            if col not in available_features:
+                                available_features.append(col)
+                                break
+                
+                # If no key features found, use first 5 columns
+                if not available_features:
+                    available_features = list(st.session_state.X_train.columns[:5])
+                
+                # Limit to maximum 6 fields for better UI
+                available_features = available_features[:6]
+                
+                # Show available fields
+                st.markdown(f'<p style="font-size: 0.8rem; color: #6B7280; margin-bottom: 15px;"><strong>Available Fields:</strong> {", ".join(available_features)}</p>', unsafe_allow_html=True)
+                
+                input_data = {}
+                c1, c2 = st.columns(2)
+                
+                for i, col in enumerate(available_features):
+                    target_col = c1 if i % 2 == 0 else c2
+                    with target_col:
+                        # Create better label
+                        label = col.replace("_", " ").replace("-", " ").title()
+                        
+                        if st.session_state.X_train[col].dtype == 'object' or len(st.session_state.X_train[col].unique()) < 10:
+                            options = sorted(list(st.session_state.X_train[col].unique()))
+                            input_data[col] = st.selectbox(f'{label}', options, key=f'dm_individual_{col}')
+                        else:
+                            min_val = float(st.session_state.X_train[col].min())
+                            max_val = float(st.session_state.X_train[col].max())
+                            mean_val = float(st.session_state.X_train[col].mean())
+                            input_data[col] = st.number_input(f'{label}', min_val, max_val, mean_val, key=f'dm_individual_{col}')
+                
+                # Add missing columns with defaults
+                for c in st.session_state.X_train.columns:
+                    if c not in input_data:
+                        input_data[c] = st.session_state.X_train[c].mode()[0] if not pd.api.types.is_numeric_dtype(st.session_state.X_train[c]) else st.session_state.X_train[c].mean()
+                
+                # Ensure correct feature order
+                input_df = pd.DataFrame([input_data])
+                input_df = input_df[st.session_state.X_train.columns]
+                
+                st.markdown('<br>', unsafe_allow_html=True)
+                
+                # Prediction buttons
+                col_pred1, col_pred2, col_space = st.columns([1, 1, 1])
+                with col_pred1:
+                    check_individual_dm = st.button('Check Application', width='stretch', type='primary', key='dm_check')
+                with col_pred2:
+                    if st.session_state.mitigated_model:
+                        check_mitigated_dm = st.button('Check Fair Application', width='stretch', key='dm_check_fair')
+                    else:
+                        st.info('No mitigated model')
+                
+                # Display results
+                if check_individual_dm or (st.session_state.mitigated_model and check_mitigated_dm):
+                    if check_individual_dm:
+                        pred = st.session_state.model.predict(input_df)[0]
+                        model_type = "Baseline Model"
+                    else:
+                        pred = st.session_state.mitigated_model.predict(input_df)[0]
+                        model_type = "Fairness-Adjusted Model"
+                    
+                    # Display decision
+                    col_decision, col_details = st.columns([1, 2])
+                    with col_decision:
+                        if pred == 1:
+                            st.markdown('''
+                                <div style="text-align: center; padding: 20px; background: #F0FDF4; border: 2px solid #16A34A; border-radius: 8px;">
+                                    <h2 style="color: #16A34A; margin: 0;">✅ APPROVED</h2>
+                                    <p style="color: #15803D; margin: 5px 0 0 0;">Loan Application Accepted</p>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            st.markdown('''
+                                <div style="text-align: center; padding: 20px; background: #FEF2F2; border: 2px solid #DC2626; border-radius: 8px;">
+                                    <h2 style="color: #DC2626; margin: 0;">❌ DENIED</h2>
+                                    <p style="color: #B91C1C; margin: 5px 0 0 0;">Loan Application Rejected</p>
+                                </div>
+                            ''', unsafe_allow_html=True)
+                    
+                    with col_details:
+                        st.markdown(f'<p style="font-weight: 600; color: {PRIMARY}; margin-bottom: 10px;">Decision Details</p>', unsafe_allow_html=True)
+                        st.markdown(f'''
+                            <div style="background: #F8FAFC; padding: 15px; border-radius: 6px; border-left: 4px solid {PRIMARY};">
+                                <p style="margin: 0; font-size: 0.9rem;"><strong>Model:</strong> {model_type}</p>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9rem;"><strong>Applicant Profile:</strong> {", ".join([f"{k}: {v}" for k, v in input_data.items()][:3])}</p>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9rem;"><strong>Decision:</strong> {"Approved" if pred == 1 else "Denied"}</p>
+                            </div>
+                        ''', unsafe_allow_html=True)
+                        
+                        # Add recommendation for denied applications
+                        if pred == 0:
+                            st.markdown('''
+                                <div style="background: #FEF3C7; padding: 12px; border-radius: 6px; margin-top: 10px;">
+                                    <p style="margin: 0; font-size: 0.85rem; color: #92400E;">
+                                        <strong>💡 Recommendation:</strong> Visit "What-If Analysis" for actionable steps to improve approval chances.
+                                    </p>
+                                </div>
+                            ''', unsafe_allow_html=True)
 
 def page_model_training():
     render_page_header('Model Training', 'Configure and train a classification model for loan approvals')
@@ -633,7 +913,7 @@ def page_bias_analysis():
             X_test_indices = st.session_state.X_test.index
             y_pred = st.session_state.model.predict(st.session_state.X_test)
             for attr in selected_attrs:
-                sf_raw_active = df_full.loc[X_test_indices, attr]
+                sf_raw_active = df_full.loc[X_test_indices, attr].values.flatten()
                 bias_metrics, approval_rates = detect_bias(st.session_state.y_test, y_pred, sf_raw_active)
                 audit_results[attr] = {'metrics': bias_metrics, 'rates': approval_rates}
             st.session_state.audit_results = audit_results
@@ -1008,6 +1288,8 @@ def page_real_time_simulator():
             stream_speed = st.slider('Stream Speed (seconds)', 0.01, 1.0, 0.1)
         with c2:
             max_available = len(st.session_state.get('X_test')) if st.session_state.get('X_test') is not None else 10000
+            # Ensure max_available is at least 10 to avoid StreamlitValueBelowMinError
+            max_available = max(max_available, 10)
             batch_size = st.number_input('Simulate Applicants (Current Max)', 10, max_available, max_available)
         with c3:
             st.markdown('<br>', unsafe_allow_html=True)
@@ -1019,7 +1301,9 @@ def page_real_time_simulator():
         chart_placeholder = st.empty()
         
         X_test_full = st.session_state.get('X_test')
-        df_sample = X_test_full.iloc[:batch_size].reset_index(drop=True)
+        # Ensure we don't exceed available data
+        actual_batch_size = min(batch_size, len(X_test_full))
+        df_sample = X_test_full.iloc[:actual_batch_size].reset_index(drop=True)
         model = st.session_state.get('mitigated_model') if st.session_state.get('mitigated_model') else st.session_state.get('model')
         
         all_decisions = []
@@ -1029,7 +1313,7 @@ def page_real_time_simulator():
         # Identify key features to show in ticker (dynamic)
         key_features = [c for c in df_sample.columns if 'income' in c.lower() or 'score' in c.lower() or 'amount' in c.lower() or 'credit' in c.lower()][:3]
         
-        for i in range(batch_size):
+        for i in range(actual_batch_size):
             row = df_sample.iloc[[i]]
             pred, conf = get_prediction_and_confidence(model, row)
             all_decisions.append(pred)

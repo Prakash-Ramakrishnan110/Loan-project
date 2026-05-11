@@ -5,11 +5,26 @@ def detect_bias(y_test, y_pred, sensitive_features):
     if sensitive_features is None:
         return (None, None)
     
-    # Ensure all inputs are numpy arrays for consistent indexing
+    # Convert inputs to appropriate types for Fairlearn
     import pandas as pd
-    y_t = np.array(y_test)
-    y_p = np.array(y_pred)
-    sf = np.array(sensitive_features)
+    y_t = np.array(y_test).flatten()
+    y_p = np.array(y_pred).flatten()
+    
+    # Convert sensitive features to pandas Series (Fairlearn prefers this)
+    if isinstance(sensitive_features, pd.Series):
+        sf = sensitive_features
+    else:
+        sf = pd.Series(np.array(sensitive_features).flatten())
+    
+    # Debug: Print shapes and types
+    print(f"DEBUG: y_test shape: {y_t.shape}, type: {type(y_t)}")
+    print(f"DEBUG: y_pred shape: {y_p.shape}, type: {type(y_p)}")
+    print(f"DEBUG: sensitive_features shape: {sf.shape}, type: {type(sf)}")
+    print(f"DEBUG: sensitive_features values: {sf.head() if len(sf) > 0 else 'Empty'}")
+    
+    # Ensure all arrays are 1D and have same length
+    if len(y_t) != len(y_p) or len(y_t) != len(sf):
+        raise ValueError(f"Length mismatch: y_test={len(y_t)}, y_pred={len(y_p)}, sensitive_features={len(sf)}")
     
     unique_vals = np.unique(np.concatenate((y_t, y_p)))
     
@@ -21,9 +36,34 @@ def detect_bias(y_test, y_pred, sensitive_features):
         y_t = y_t.astype(int)
         y_p = y_p.astype(int)
         
-    # Standard Fairlearn metrics
-    dpd = demographic_parity_difference(y_t, y_p, sensitive_features=sf)
-    eod = equalized_odds_difference(y_t, y_p, sensitive_features=sf)
+    # Standard Fairlearn metrics with comprehensive error handling
+    try:
+        print(f"DEBUG: Attempting Fairlearn with y_t shape: {y_t.shape}, sf shape: {sf.shape}")
+        dpd = demographic_parity_difference(y_t, y_p, sensitive_features=sf)
+        print(f"DEBUG: DPD calculation successful: {dpd}")
+    except Exception as e:
+        print(f"DEBUG: DPD failed with error: {e}")
+        print(f"DEBUG: Error type: {type(e)}")
+        # Try alternative approach - convert to list
+        try:
+            dpd = demographic_parity_difference(y_t.tolist(), y_p.tolist(), sensitive_features=sf.tolist())
+            print(f"DEBUG: DPD successful with list conversion: {dpd}")
+        except Exception as e2:
+            print(f"DEBUG: DPD failed even with list conversion: {e2}")
+            raise e2
+    
+    try:
+        eod = equalized_odds_difference(y_t, y_p, sensitive_features=sf)
+        print(f"DEBUG: EOD calculation successful: {eod}")
+    except Exception as e:
+        print(f"DEBUG: EOD failed with error: {e}")
+        # Try alternative approach
+        try:
+            eod = equalized_odds_difference(y_t.tolist(), y_p.tolist(), sensitive_features=sf.tolist())
+            print(f"DEBUG: EOD successful with list conversion: {eod}")
+        except Exception as e2:
+            print(f"DEBUG: EOD failed even with list conversion: {e2}")
+            raise e2
     
     unique_groups = np.unique(sf)
     approval_rates = {}
