@@ -498,11 +498,27 @@ def page_data_management():
                 st.session_state.data = pd.read_csv(uploaded_file)
             elif load_sample:
                 import os
-                # Get absolute path to handle working directory issues
-                file_path = os.path.abspath(mock_datasets[selected_mock])
-                if not os.path.exists(file_path):
-                    st.error(f"Offline dataset {selected_mock} not found at {file_path}. Please ensure it was generated.")
+                # Check multiple possible paths for different deployment environments
+                relative_path = mock_datasets[selected_mock]
+                possible_paths = [
+                    relative_path,  # Relative path
+                    os.path.abspath(relative_path),  # Absolute path
+                    f"/mount/src/loan-project/{relative_path}",  # Streamlit Cloud path
+                    f"/app/{relative_path}",  # Docker path
+                    f"./{relative_path}",  # Current directory
+                    f"data/{os.path.basename(relative_path)}",  # Just data folder
+                ]
+                
+                file_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        file_path = path
+                        break
+                
+                if not file_path:
+                    st.error(f"Offline dataset {selected_mock} not found. Please ensure it was generated.")
                     st.info(f"Current working directory: {os.getcwd()}")
+                    st.info(f"Paths checked: {', '.join(possible_paths)}")
                     return
                 st.session_state.data = pd.read_csv(file_path)
                 st.info(f"Successfully loaded offline dataset: {selected_mock}")
