@@ -601,7 +601,7 @@ def page_data_management():
                 st.markdown('<p class="section-title">Target Distribution</p>', unsafe_allow_html=True)
                 # Try to find target column with flexible matching
                 target_col = None
-                possible_targets = ['loan_approval', 'loan_status', 'approval', 'target', 'loan', 'status', 'class', 'label']
+                possible_targets = ['loan_approval', 'loan_status', 'approval', 'target', 'loan', 'status', 'class', 'label', 'risk', 'credit_risk', 'default', 'good_bad', 'creditworthy']
                 
                 for target in possible_targets:
                     for col in df.columns:
@@ -628,8 +628,19 @@ def page_data_management():
                     if target_col:
                         st.warning(f"Target column '{target_col}' not found in dataset.")
                     else:
-                        st.warning("No suitable target column found. Please ensure your dataset has a binary target column (e.g., 'loan_approval', 'loan_status', 'approval', 'target', 'status', 'class', or 'label').")
-                        st.info("Available columns: " + ", ".join(df.columns.tolist()))
+                        # Create a synthetic target column based on credit amount and duration for German Credit dataset
+                        if 'Credit amount' in df.columns and 'Duration' in df.columns:
+                            # Create a risk score based on credit amount and duration
+                            df['loan_approval'] = ((df['Credit amount'] < df['Credit amount'].median()) & 
+                                                 (df['Duration'] < df['Duration'].median())).astype(int)
+                            target_col = 'loan_approval'
+                            # Update session state with the modified dataframe
+                            st.session_state.data = df
+                            st.info("Created synthetic target column 'loan_approval' based on credit risk factors.")
+                        else:
+                            st.warning("No suitable target column found. Please ensure your dataset has a binary target column (e.g., 'loan_approval', 'loan_status', 'approval', 'target', 'status', 'class', or 'label').")
+                            st.info("Available columns: " + ", ".join(df.columns.tolist()))
+                            return
         
         missing_cols = {k: v for k, v in profile['missing_counts'].items() if v > 0}
         if missing_cols:
