@@ -498,10 +498,13 @@ def page_data_management():
                 st.session_state.data = pd.read_csv(uploaded_file)
             elif load_sample:
                 import os
-                if not os.path.exists(mock_datasets[selected_mock]):
-                    st.error(f"Offline dataset {selected_mock} not found. Please ensure it was generated.")
+                # Get absolute path to handle working directory issues
+                file_path = os.path.abspath(mock_datasets[selected_mock])
+                if not os.path.exists(file_path):
+                    st.error(f"Offline dataset {selected_mock} not found at {file_path}. Please ensure it was generated.")
+                    st.info(f"Current working directory: {os.getcwd()}")
                     return
-                st.session_state.data = pd.read_csv(mock_datasets[selected_mock])
+                st.session_state.data = pd.read_csv(file_path)
                 st.info(f"Successfully loaded offline dataset: {selected_mock}")
             elif fetch_kaggle:
                 dataset_id = kaggle_datasets[selected_kaggle]
