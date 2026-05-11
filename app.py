@@ -470,9 +470,7 @@ def page_data_management():
         uploaded_file = st.file_uploader('Upload Local Dataset (CSV)', type='csv', label_visibility='collapsed')
     with col_sample_sel:
         mock_datasets = {
-            'Default Loan Data': 'data/loan_data.csv',
-            'German Credit Risk (Synthetic)': 'data/german_credit_mock.csv',
-            'Home Credit Risk (Synthetic)': 'data/home_credit_mock.csv'
+            'Default Loan Data': 'data/loan_data.csv'
         }
         selected_mock = st.selectbox('Select Offline Dataset', list(mock_datasets.keys()), label_visibility='collapsed')
     with col_sample_btn:
