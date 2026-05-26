@@ -170,9 +170,9 @@ with st.sidebar:
     
     progress_html = '<div style="margin-top: 8px;">'
     for label, completed in steps:
-        icon = "✅" if completed else "⏳"
+        dot = "#4ADE80" if completed else "rgba(255,255,255,0.25)"
         color = "#4ADE80" if completed else "rgba(255,255,255,0.4)"
-        progress_html += f'<div style="font-size: 0.72rem; color: {color}; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;"><span>{label}</span> <span>{icon}</span></div>'
+        progress_html += f'<div style="font-size: 0.72rem; color: {color}; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;"><span>{label}</span> <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{dot};"></span></div>'
     progress_html += '</div>'
     st.markdown(progress_html, unsafe_allow_html=True)
 
@@ -869,6 +869,7 @@ def page_model_training():
                 st.session_state.model_type = model_type
                 st.session_state.sensitive_col = primary_sens
                 st.session_state.all_sensitive_cols = sensitive_cols
+                st.session_state.df_train_subset = df_to_train.copy()
                 st.session_state.bias_metrics = None
                 st.session_state.approval_rates = None
                 st.session_state.mitigated_model = None
@@ -937,11 +938,20 @@ def page_bias_analysis():
     if run_audit:
         with st.spinner('Analyzing model disparities...'):
             audit_results = {}
-            df_full = st.session_state.data
+            # Use the training subset (index-aligned) instead of the raw data
+            df_ref = st.session_state.get('df_train_subset', st.session_state.data)
             X_test_indices = st.session_state.X_test.index
             y_pred = st.session_state.model.predict(st.session_state.X_test)
             for attr in selected_attrs:
-                sf_raw_active = df_full.loc[X_test_indices, attr].values.flatten()
+                try:
+                    sf_raw_active = df_ref.loc[X_test_indices, attr].values.flatten()
+                except KeyError:
+                    # Fallback: if attr was encoded into X_test, use that column directly
+                    if attr in st.session_state.X_test.columns:
+                        sf_raw_active = st.session_state.X_test[attr].values.flatten()
+                    else:
+                        st.error(f'Column "{attr}" not found in training data. Please retrain the model.')
+                        return
                 bias_metrics, approval_rates = detect_bias(st.session_state.y_test, y_pred, sf_raw_active)
                 audit_results[attr] = {'metrics': bias_metrics, 'rates': approval_rates}
             st.session_state.audit_results = audit_results
@@ -1012,10 +1022,18 @@ def page_intersectional_audit():
 
     if run_audit and len(selected_cols) >= 2:
         with st.spinner('Calculating intersectional disparities...'):
-            df_full = st.session_state.data
+            df_ref = st.session_state.get('df_train_subset', st.session_state.data)
             X_test_indices = st.session_state.X_test.index
             y_pred = st.session_state.model.predict(st.session_state.X_test)
-            df_sens_active = df_full.loc[X_test_indices, selected_cols]
+            try:
+                df_sens_active = df_ref.loc[X_test_indices, selected_cols]
+            except KeyError:
+                available = [c for c in selected_cols if c in st.session_state.X_test.columns]
+                if len(available) >= 2:
+                    df_sens_active = st.session_state.X_test[available]
+                else:
+                    st.error('Selected columns not found in aligned training data. Please retrain the model.')
+                    return
             
             metrics, rates = detect_intersectional_bias(st.session_state.y_test, y_pred, df_sens_active)
             
