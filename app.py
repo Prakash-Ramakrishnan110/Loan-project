@@ -943,15 +943,28 @@ def page_bias_analysis():
             X_test_indices = st.session_state.X_test.index
             y_pred = st.session_state.model.predict(st.session_state.X_test)
             for attr in selected_attrs:
-                try:
-                    sf_raw_active = df_ref.loc[X_test_indices, attr].values.flatten()
-                except KeyError:
-                    # Fallback: if attr was encoded into X_test, use that column directly
-                    if attr in st.session_state.X_test.columns:
-                        sf_raw_active = st.session_state.X_test[attr].values.flatten()
-                    else:
-                        st.error(f'Column "{attr}" not found in training data. Please retrain the model.')
-                        return
+                sf_raw_active = None
+                # Strategy 1: lookup from aligned reference data
+                if attr in df_ref.columns:
+                    try:
+                        sf_raw_active = df_ref.loc[X_test_indices, attr].values.flatten()
+                    except Exception:
+                        # Index mismatch — try positional alignment via reindex
+                        try:
+                            aligned = df_ref[attr].reindex(X_test_indices)
+                            if not aligned.isna().all():
+                                sf_raw_active = aligned.fillna(aligned.mode()[0]).values.flatten()
+                        except Exception:
+                            pass
+                # Strategy 2: use the column from X_test if it survived preprocessing
+                if sf_raw_active is None and attr in st.session_state.X_test.columns:
+                    sf_raw_active = st.session_state.X_test[attr].values.flatten()
+                # Strategy 3: use stored sf_test for primary sensitive column
+                if sf_raw_active is None and attr == st.session_state.get('sensitive_col') and st.session_state.sf_test is not None:
+                    sf_raw_active = np.array(st.session_state.sf_test).flatten()
+                if sf_raw_active is None:
+                    st.error(f'Column "{attr}" could not be resolved. Please retrain the model with the latest code.')
+                    return
                 bias_metrics, approval_rates = detect_bias(st.session_state.y_test, y_pred, sf_raw_active)
                 audit_results[attr] = {'metrics': bias_metrics, 'rates': approval_rates}
             st.session_state.audit_results = audit_results
@@ -1027,13 +1040,19 @@ def page_intersectional_audit():
             y_pred = st.session_state.model.predict(st.session_state.X_test)
             try:
                 df_sens_active = df_ref.loc[X_test_indices, selected_cols]
-            except KeyError:
-                available = [c for c in selected_cols if c in st.session_state.X_test.columns]
-                if len(available) >= 2:
-                    df_sens_active = st.session_state.X_test[available]
-                else:
-                    st.error('Selected columns not found in aligned training data. Please retrain the model.')
-                    return
+            except Exception:
+                # Fallback: try reindex for alignment
+                try:
+                    df_sens_active = df_ref[selected_cols].reindex(X_test_indices).dropna()
+                    if len(df_sens_active) < len(X_test_indices) * 0.5:
+                        raise ValueError('Too many missing values after reindex')
+                except Exception:
+                    available = [c for c in selected_cols if c in st.session_state.X_test.columns]
+                    if len(available) >= 2:
+                        df_sens_active = st.session_state.X_test[available]
+                    else:
+                        st.error('Selected columns not found in aligned training data. Please retrain the model.')
+                        return
             
             metrics, rates = detect_intersectional_bias(st.session_state.y_test, y_pred, df_sens_active)
             
