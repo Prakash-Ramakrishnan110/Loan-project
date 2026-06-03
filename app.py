@@ -1754,7 +1754,33 @@ def page_reports():
         with st.container(border=True):
             st.markdown('<p class="section-title">Audit Report Preview</p>', unsafe_allow_html=True)
             st.markdown(st.session_state.report_text)
-        st.download_button('Download Official PDF Report', st.session_state.report_pdf, 'Compliance_Report.pdf', 'application/pdf', width='stretch')
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button('Download Official PDF Report', st.session_state.report_pdf, 'Compliance_Report.pdf', 'application/pdf', width='stretch')
+        with col2:
+            if st.button('Save Audit to Cloud ☁️', width='stretch', key='report_save_cloud', type='secondary'):
+                try:
+                    supabase = get_supabase_client()
+                    try:
+                        auth_resp = supabase.auth.get_user()
+                        email = auth_resp.user.email
+                    except:
+                        email = "demo_user@fairness.ai"
+                        
+                    di = float(st.session_state.bias_metrics['Disparate Impact'])
+                    dataset = 'Sample Loan Data' if st.session_state.get('data') is not None else 'Unknown Data'
+                    model = st.session_state.get('model_type', 'AI Model')
+                    
+                    supabase.table('audit_history').insert({
+                        'user_email': email,
+                        'dataset_name': dataset,
+                        'model_type': model,
+                        'disparate_impact_score': di
+                    }).execute()
+                    
+                    st.toast("✅ Audit successfully saved to Supabase Cloud!")
+                except Exception as e:
+                    st.toast(f"❌ Failed to save to Supabase: {str(e)}")
 
 PAGES = {
     'Overview': page_overview, 
