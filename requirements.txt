@@ -1,6 +1,6 @@
 streamlit
 pandas
-numpy<2
+numpy
 scikit-learn
 fairlearn
 aif360
