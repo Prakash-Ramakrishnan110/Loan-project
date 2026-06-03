@@ -26,15 +26,15 @@ section[data-testid="stSidebar"] > div:first-child {
     padding-top: 0.5rem;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    overflow: hidden !important;
-    overflow-y: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     height: 100vh !important;
     max-height: 100vh !important;
 }
 
 section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
     overflow-x: hidden !important;
-    overflow-y: hidden !important;
+    overflow-y: auto !important;
 }
 
 section[data-testid="stSidebar"] .stRadio {
@@ -547,5 +547,143 @@ div.nav-btn-container button:hover {
     background-color: #F8FAFC !important;
     border-color: #94A3B8 !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+/* ---- Landing Page & Auth ---- */
+.landing-hero {
+    background: linear-gradient(135deg, PRIMARY_VAR 0%, #1E293B 100%);
+    padding: 60px 40px;
+    border-radius: 16px;
+    color: white;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.landing-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(22,163,74,0.1) 0%, transparent 50%);
+    animation: rotate-bg 30s linear infinite;
+    z-index: 0;
+}
+
+@keyframes rotate-bg {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.landing-content {
+    position: relative;
+    z-index: 1;
+}
+
+.landing-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    margin: 0 0 10px 0;
+    color: #FFFFFF !important;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+
+.landing-subtitle {
+    font-size: 1.2rem;
+    color: #4ADE80 !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 30px;
+}
+
+/* ---- CSS Slideshow ---- */
+.slideshow-container {
+    margin-top: 40px;
+    height: 150px;
+    position: relative;
+}
+
+.slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    width: 100%;
+    transform: translateY(20px);
+    animation: slide-anim 16s infinite;
+}
+
+.slide:nth-child(1) { animation-delay: 0s; }
+.slide:nth-child(2) { animation-delay: 4s; }
+.slide:nth-child(3) { animation-delay: 8s; }
+.slide:nth-child(4) { animation-delay: 12s; }
+
+@keyframes slide-anim {
+    0% { opacity: 0; transform: translateY(20px); }
+    5% { opacity: 1; transform: translateY(0); }
+    20% { opacity: 1; transform: translateY(0); }
+    25% { opacity: 0; transform: translateY(-20px); }
+    100% { opacity: 0; transform: translateY(-20px); }
+}
+
+.slide-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    display: inline-block;
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.slide-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: white;
+    margin: 0 0 5px 0;
+}
+
+.slide-desc {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.7);
+    margin: 0;
+}
+
+/* ---- Auth Form Styling ---- */
+.auth-container {
+    background: CARD_BG_VAR;
+    padding: 40px;
+    border-radius: 16px;
+    border: 1px solid BORDER_VAR;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-header h2 {
+    color: PRIMARY_VAR;
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 0 0 5px 0;
+}
+
+.auth-header p {
+    color: TEXT_MUTED_VAR;
+    font-size: 0.9rem;
+    margin: 0;
 }
 

@@ -12,3 +12,4 @@ kagglehub[pandas-datasets]
 opencv-python-headless
 dice-ml
 scipy
+supabase

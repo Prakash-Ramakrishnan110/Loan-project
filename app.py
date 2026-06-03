@@ -23,6 +23,7 @@ import plotly.express as px
 import base64
 from io import BytesIO
 import streamlit.components.v1 as components
+from utils.auth import get_supabase_client
 st.set_page_config(page_title='Fairness Audit Pipeline | Compliance Platform', layout='wide', initial_sidebar_state='expanded')
 
 # Theme Colors
@@ -61,6 +62,7 @@ from utils.mitigation import mitigate_bias
 from utils.explainability import compute_shap_values, get_feature_importance, get_native_feature_importance, generate_shap_summary_plot
 from utils.counterfactuals import generate_counterfactuals, get_actionable_diff
 from utils.reporting import generate_report, generate_pdf_report
+from utils.auth import authenticate_user, register_user
 
 # Force reload modules to bypass Streamlit's aggressive caching of background files
 import importlib
@@ -114,7 +116,7 @@ def plotly_theme(fig, height=400):
     fig.update_xaxes(gridcolor='#F1F5F9', linecolor=BORDER)
     fig.update_yaxes(gridcolor='#F1F5F9', linecolor=BORDER)
     return fig
-STATE_KEYS = {'data': None, 'data_profile': None, 'model': None, 'metrics': None, 'bias_metrics': None, 'approval_rates': None, 'mitigated_model': None, 'mitigated_metrics': None, 'mitigated_bias_metrics': None, 'mitigated_approval_rates': None, 'X_train': None, 'X_test': None, 'y_train': None, 'y_test': None, 'sensitive_col': None, 'model_type': None, 'sf_test': None, 'sf_train': None, 'mitigation_method': None, 'report_text': None, 'report_pdf': None, 'active_page': 'Overview', 'active_category': 'Standard Workflow'}
+STATE_KEYS = {'logged_in': False, 'data': None, 'data_profile': None, 'model': None, 'metrics': None, 'bias_metrics': None, 'approval_rates': None, 'mitigated_model': None, 'mitigated_metrics': None, 'mitigated_bias_metrics': None, 'mitigated_approval_rates': None, 'X_train': None, 'X_test': None, 'y_train': None, 'y_test': None, 'sensitive_col': None, 'model_type': None, 'sf_test': None, 'sf_train': None, 'mitigation_method': None, 'report_text': None, 'report_pdf': None, 'active_page': 'Overview', 'active_category': 'Standard Workflow'}
 for key, default in STATE_KEYS.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -122,14 +124,138 @@ for key, default in STATE_KEYS.items():
 def get_state(key, default=None):
     return st.session_state.get(key, default)
 
+def render_landing_page():
+    # Inject CSS to make the landing page fit exactly on one screen without scrolling
+    st.markdown("""
+        <style>
+            .stApp { overflow: hidden !important; }
+            .block-container { 
+                padding-top: 3rem !important; 
+                padding-bottom: 0rem !important; 
+                max-width: 1400px !important;
+            }
+            header[data-testid="stHeader"] { display: none !important; }
+            [data-testid="stImage"] { display: flex; justify-content: center; }
+            [data-testid="stImage"] img { 
+                max-height: 400px !important; 
+                width: auto !important; 
+                object-fit: contain !important; 
+            }
+            
+            /* Dark Theme for the Auth Column (Right Side) */
+            [data-testid="stColumn"]:nth-of-type(2) {
+                background-color: #0F172A !important;
+                padding: 35px !important;
+                border-radius: 20px !important;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+                border: 1px solid #1E293B !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) [data-baseweb="tab"] {
+                color: #94A3B8 !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) [aria-selected="true"] {
+                color: #4ADE80 !important;
+                background-color: transparent !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) [data-testid="stForm"] {
+                background-color: #1E293B !important;
+                border: 1px solid #334155 !important;
+                border-radius: 12px !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) input {
+                background-color: #0F172A !important;
+                color: #F8FAFC !important;
+                border: 1px solid #334155 !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) label {
+                color: #CBD5E1 !important;
+            }
+            [data-testid="stColumn"]:nth-of-type(2) button[kind="secondaryFormSubmit"] {
+                background-color: #16A34A !important;
+                color: #FFFFFF !important;
+                border: none !important;
+                font-weight: 600 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    col_hero, col_auth = st.columns([1.5, 1], gap="large")
+    
+    with col_hero:
+        st.markdown('''
+            <div style="margin-bottom: 10px;">
+                <p style="font-size: 1.2rem; color: #16A34A; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 5px;">Enterprise Compliance v2.0</p>
+                <h1 style="font-size: 3.2rem; font-weight: 900; color: #0F172A; margin-top: 0; margin-bottom: 10px; line-height: 1.1; letter-spacing: -0.03em;">Fairness Audit Platform</h1>
+                <p style="font-size: 1rem; color: #64748B; margin-bottom: 10px;">
+                    Detect, audit, and mathematically mitigate algorithmic bias in AI-driven lending models.
+                </p>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        # Static Illustration Image (Loan/Finance specifically)
+        st.image("assets/loan_illustration.png", use_container_width=True)
+        
+    with col_auth:
+        st.markdown('''
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #FFFFFF; font-size: 1.8rem; font-weight: 800; margin: 0 0 5px 0;">Secure Portal Access</h2>
+                <p style="color: #94A3B8; font-size: 0.9rem; margin: 0;">Login to the Fairness Audit Platform</p>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        tab_signin, tab_signup = st.tabs(['Sign In', 'Sign Up'])
+        
+        with tab_signin:
+            with st.form("signin_form", clear_on_submit=False):
+                email = st.text_input("Email Address", key="login_user")
+                password = st.text_input("Password", type="password", key="login_pass")
+                submitted = st.form_submit_button("Authenticate", use_container_width=True)
+                
+                if submitted:
+                    success, msg = authenticate_user(email, password)
+                    if success:
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.error(msg)
+            
+            st.markdown('<div style="text-align: center; margin-top: 10px;"><p style="color: #94A3B8; font-size: 0.8rem; margin-bottom: 10px;">— or —</p></div>', unsafe_allow_html=True)
+            if st.button("Demo Login", use_container_width=True, type="primary"):
+                st.session_state.logged_in = True
+                st.rerun()
+        with tab_signup:
+            with st.form("signup_form", clear_on_submit=True):
+                email = st.text_input("Email Address")
+                new_pass = st.text_input("Create Password", type="password")
+                confirm_pass = st.text_input("Confirm Password", type="password")
+                registered = st.form_submit_button("Create Account", use_container_width=True)
+                
+                if registered:
+                    if not email or not new_pass:
+                        st.error("Please fill in all fields.")
+                    elif new_pass != confirm_pass:
+                        st.error("Passwords do not match.")
+                    else:
+                        success, msg = register_user(email, new_pass)
+                        if success:
+                            st.success(f"{msg} You can now Sign In.")
+                        else:
+                            st.error(msg)
+                            
+
+
+if not st.session_state.get('logged_in', False):
+    render_landing_page()
+    st.stop()
+
 # Navigation Configuration
 ORDERED_PAGES = [
-    "Overview", "Data Management", "Model Training", "Bias Analysis", 
+    "Overview", "Audit History", "Data Management", "Model Training", "Bias Analysis", 
     "Intersectional Audit", "Mitigation Engine", "Performance Comparison",
     "Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"
 ]
-PAGE_TO_CAT = {p: "Standard Workflow" for p in ORDERED_PAGES[:7]}
-PAGE_TO_CAT.update({p: "Advanced Analysis Level" for p in ORDERED_PAGES[7:]})
+PAGE_TO_CAT = {p: "Standard Workflow" for p in ORDERED_PAGES[:8]}
+PAGE_TO_CAT.update({p: "Advanced Analysis Level" for p in ORDERED_PAGES[8:]})
 with st.sidebar:
     st.markdown(f'''
         <div class="sidebar-header">
@@ -150,7 +276,7 @@ with st.sidebar:
         st.session_state.active_page = "Overview" if category == "Standard Workflow" else "Explainability"
         st.rerun()
 
-    cat_pages = ["Overview", "Data Management", "Model Training", "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison"] if category == "Standard Workflow" else ["Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"]
+    cat_pages = ["Overview", "Audit History", "Data Management", "Model Training", "Bias Analysis", "Intersectional Audit", "Mitigation Engine", "Performance Comparison"] if category == "Standard Workflow" else ["Explainability", "Real-time Simulator", "What-If Analysis", "Compliance Reports"]
     
     page_index = cat_pages.index(st.session_state.active_page) if st.session_state.active_page in cat_pages else 0
     page_selection = st.radio('Navigation', cat_pages, index=page_index, label_visibility='collapsed')
@@ -176,7 +302,17 @@ with st.sidebar:
     progress_html += '</div>'
     st.markdown(progress_html, unsafe_allow_html=True)
 
-    st.divider()
+    st.markdown('<div style="height: 30px;"></div>', unsafe_allow_html=True)
+    if st.button('Logout', use_container_width=True):
+        try:
+            from utils.auth import get_supabase_client
+            get_supabase_client().auth.sign_out()
+        except:
+            pass
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.session_state.logged_in = False
+        st.rerun()
 
 def page_overview():
     # Enterprise Hero Banner with live timestamp
@@ -284,6 +420,34 @@ def page_overview():
                 st.session_state.active_page = 'Compliance Reports'
                 st.session_state.active_category = 'Advanced Analysis Level'
                 st.rerun()
+                
+            st.markdown('<hr style="margin: 10px 0; border-color: rgba(255,255,255,0.1);">', unsafe_allow_html=True)
+            if st.button('Save Audit to Cloud ☁️', width='stretch', key='qa_cloud', type='secondary'):
+                if not st.session_state.get('bias_metrics'):
+                    st.toast("⚠️ No bias audit found to save. Please run a bias audit first.")
+                else:
+                    try:
+                        supabase = get_supabase_client()
+                        try:
+                            auth_resp = supabase.auth.get_user()
+                            email = auth_resp.user.email
+                        except:
+                            email = "demo_user@fairness.ai"
+                            
+                        di = float(st.session_state.bias_metrics['Disparate Impact'])
+                        dataset = 'Sample Loan Data' if st.session_state.get('data') is not None else 'Unknown Data'
+                        model = st.session_state.get('model_type', 'AI Model')
+                        
+                        supabase.table('audit_history').insert({
+                            'user_email': email,
+                            'dataset_name': dataset,
+                            'model_type': model,
+                            'disparate_impact_score': di
+                        }).execute()
+                        
+                        st.toast("✅ Audit successfully saved to Supabase Cloud!")
+                    except Exception as e:
+                        st.toast(f"❌ Failed to save to Supabase: {str(e)}")
     
     # Individual Loan Check Section
     if st.session_state.get('show_individual_check'):
@@ -461,6 +625,36 @@ def page_overview():
             fig.update_layout(height=300, margin=dict(t=0, b=0))
             st.plotly_chart(fig, width='stretch')
 
+
+def page_audit_history():
+    render_page_header('Audit History', 'View your previously saved fairness audits from the cloud')
+    
+    st.markdown('<p class="section-title">Saved Audits</p>', unsafe_allow_html=True)
+    
+    try:
+        supabase = get_supabase_client()
+        response = supabase.table('audit_history').select('*').order('created_at', desc=True).execute()
+        
+        if len(response.data) == 0:
+            render_info("You have no saved audits. Go to the Overview or Bias Analysis page to save your first audit!")
+            return
+            
+        df = pd.DataFrame(response.data)
+        df['Date'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M')
+        df = df.rename(columns={
+            'dataset_name': 'Dataset',
+            'model_type': 'Model',
+            'disparate_impact_score': 'Disparate Impact (DI)'
+        })
+        
+        st.dataframe(
+            df[['Date', 'Dataset', 'Model', 'Disparate Impact (DI)']], 
+            use_container_width=True,
+            hide_index=True
+        )
+        
+    except Exception as e:
+        st.error(f"Failed to fetch audit history: {str(e)}")
 
 def page_data_management():
     render_page_header('Data Management', 'Upload, inspect, and profile loan application datasets')
@@ -1564,6 +1758,8 @@ def page_reports():
 
 PAGES = {
     'Overview': page_overview, 
+    'Audit History': page_audit_history,
+
     'Data Management': page_data_management, 
     'Model Training': page_model_training, 
     'Bias Analysis': page_bias_analysis, 
