@@ -97,7 +97,6 @@ ipython_config.py
 # pdm.lock
 
 # Runtime data
-.env
 .venv
 env/
 venv/
@@ -120,7 +119,6 @@ dmypy.json
 
 
 # vscode
-.vscode/
 
 # Local data
 data/
@@ -130,3 +128,5 @@ reports/
  *.png
  *.jpg
  *.jpeg
+config.bat
+node_modules

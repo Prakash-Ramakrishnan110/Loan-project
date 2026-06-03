@@ -1,6 +1,15 @@
 {
-    "python.defaultInterpreterPath": "C:\\Users\\praka\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
-    "python.analysis.extraPaths": [
-        "./utils"
-    ]
+  "python.defaultInterpreterPath": "C:\\Users\\praka\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe",
+  "python.analysis.extraPaths": [
+    "./utils"
+  ],
+  "task.allowAutomaticTasks": true,
+  "debug.openDebug": "neverOpen",
+  "terminal.integrated.inheritEnv": false,
+  "tasks": {
+    "label": "lint on open",
+    "type": "shell",
+    "command": "npm run lint",
+    "runOn": "folderOpen"
+  }
 }
